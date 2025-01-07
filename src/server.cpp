@@ -4,6 +4,8 @@
 
 #include "common.hpp"
 #include "compositor.hpp"
+#include "xdg-shell-protocol.h"
+#include "xdg_shell.hpp"
 
 namespace yaza {
 Server::Server() : is_started_(false) {
@@ -20,6 +22,11 @@ Server::Server() : is_started_(false) {
   if (!wl_global_create(this->wl_display_, &wl_compositor_interface, 5, this,
           compositor::bind)) {
     LOG_ERR("Failed to create global (compositor)");
+    throw std::exception();
+  }
+  if (!wl_global_create(this->wl_display_, &xdg_wm_base_interface, 1, this,
+          xdg_shell::bind)) {
+    LOG_ERR("Failed to create global (xdg_wm_base)");
     throw std::exception();
   }
 }
