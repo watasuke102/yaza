@@ -1,0 +1,55 @@
+---
+Language:        Cpp
+BasedOnStyle:  Google
+Standard:        Auto
+ColumnLimit:     80
+
+##  Align
+# do not guess alignment of {&,*} by analyzing
+DerivePointerAlignment:       false
+# format as `int* const * x = NULL;`
+PointerAlignment:             Left
+SpaceAroundPointerQualifiers: After
+# format as `int& x;`
+ReferenceAlignment:           Left
+# align line connector `\`
+AlignEscapedNewlines:         Right
+
+AlignArrayOfStructures:       Left
+AlignTrailingComments:
+  Kind: Always
+# align assignment, declare, and bit field across comments
+# do not align when separated by a blank line
+AlignConsecutiveMacros:       AcrossComments
+AlignConsecutiveBitFields:    AcrossComments
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossComments: true
+  PadOperators: true # align `=` of >>= and =
+AlignConsecutiveDeclarations:
+  Enabled: true
+  AcrossComments: true
+  PadOperators: true
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+QualifierAlignment: Left
+
+##  Break
+BreakBeforeBraces: Attach
+AlignAfterOpenBracket: DontAlign
+# place `?` and `:` in ternary operators at the end of lines
+BreakBeforeTernaryOperators: false
+BreakConstructorInitializers: BeforeComma
+
+##  Indentation
+IndentWidth:          2
+IndentCaseLabels:     true
+# give one space indentation to `private`, `public`
+AccessModifierOffset: -1
+NamespaceIndentation: None
+
+##  Short
+AllowShortBlocksOnASingleLine:       Empty
+AllowShortLambdasOnASingleLine:      None
+AllowShortFunctionsOnASingleLine:    None
+AllowShortIfStatementsOnASingleLine: Never

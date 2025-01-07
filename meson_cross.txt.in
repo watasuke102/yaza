@@ -1,0 +1,16 @@
+[host_machine]
+system     = 'android-arm'
+cpu_family = 'arm'
+cpu        = 'armv64-v8a'
+endian     = 'little'
+
+[binaries]
+c          = '@CMAKE_ANDROID_NDK@/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang'
+cpp        = '@CMAKE_ANDROID_NDK@/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang++'
+ar         = '@CMAKE_ANDROID_NDK@/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar'
+ld         = '@CMAKE_ANDROID_NDK@/toolchains/llvm/prebuilt/linux-x86_64/bin/ld'
+strip      = '@CMAKE_ANDROID_NDK@/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip'
+pkg-config = 'pkg-config'
+
+[properties]
+pkg_config_libdir = '@EXTERNAL_PROJ_PREFIX@/lib/pkgconfig:@EXTERNAL_PROJ_PREFIX@/share/pkgconfig'
