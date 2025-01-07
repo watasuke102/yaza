@@ -61,7 +61,7 @@ set(link_libs
 )
 
 add_executable(${PROJECT_NAME} ${sources} ${headers})
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Wno-gnu-zero-variadic-macro-arguments)
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Wno-gnu-zero-variadic-macro-arguments -ffile-prefix-map=${CMAKE_SOURCE_DIR}/src/=)
 target_include_directories(${PROJECT_NAME} PUBLIC ${inc_dirs})
 target_link_libraries(${PROJECT_NAME} ${link_libs})
 
