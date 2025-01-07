@@ -2,7 +2,7 @@
 
 #include <exception>
 
-#include "log.hpp"
+#include "common.hpp"
 
 namespace yaza {
 Server::Server() : is_started_(false) {

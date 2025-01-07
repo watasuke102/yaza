@@ -4,17 +4,15 @@
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
 
+#include "common.hpp"
+
 namespace yaza {
 class Server {
  public:
+  DISABLE_MOVE_AND_COPY(Server);
   Server();
   ~Server();
   void start();
-
-  Server(const Server&)            = delete;
-  Server(Server&&)                 = delete;
-  Server& operator=(const Server&) = delete;
-  Server& operator=(Server&&)      = delete;
 
  private:
   bool        is_started_;
