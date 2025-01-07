@@ -3,6 +3,7 @@
 #include <exception>
 
 #include "common.hpp"
+#include "compositor.hpp"
 
 namespace yaza {
 Server::Server() : is_started_(false) {
@@ -15,6 +16,12 @@ Server::Server() : is_started_(false) {
 
   this->socket_ = wl_display_add_socket_auto(this->wl_display_);
   setenv("WAYLAND_DISPLAY", this->socket_, true);
+
+  if (!wl_global_create(this->wl_display_, &wl_compositor_interface, 5, this,
+          compositor::bind)) {
+    LOG_ERR("Failed to create global (compositor)");
+    throw std::exception();
+  }
 }
 Server::~Server() {
   wl_display_destroy_clients(this->wl_display_);
