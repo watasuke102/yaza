@@ -23,7 +23,7 @@ void create_region(
   region::new_region(client, id);
 }
 
-const struct wl_compositor_interface kCompositorImpl = {
+const struct wl_compositor_interface kImpl = {
     .create_surface = create_surface,
     .create_region  = create_region,
 };
@@ -38,6 +38,6 @@ void bind(wl_client* client, void* data, uint32_t version, uint32_t id) {
     wl_client_post_no_memory(client);
     return;
   }
-  wl_resource_set_implementation(resource, &kCompositorImpl, server, nullptr);
+  wl_resource_set_implementation(resource, &kImpl, server, nullptr);
 }
 }  // namespace yaza::compositor

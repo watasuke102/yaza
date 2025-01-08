@@ -49,7 +49,7 @@ void offset(wl_client* /*client*/, wl_resource* /*resource*/, int32_t /*x*/,
     int32_t /*y*/) {
   // TODO
 }
-const struct wl_surface_interface kSurfaceImpl = {
+const struct wl_surface_interface kImpl = {
     .destroy              = destroy,
     .attach               = attach,
     .damage               = damage,
@@ -94,6 +94,6 @@ void new_surface(wl_client* client, wl_resource* resource, uint32_t id) {
   auto* surface = new Surface(client, resource, id);
   LOG_DEBUG("surface created (id: %u)", id);
   wl_resource_set_implementation(
-      surface->resource(), &kSurfaceImpl, surface, delete_surface);
+      surface->resource(), &kImpl, surface, delete_surface);
 }
 }  // namespace yaza::surface

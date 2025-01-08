@@ -28,7 +28,7 @@ void ack_configure(wl_client* /* client */, wl_resource* /* resource */,
     uint32_t /* serial */) {
   // TODO
 }
-const struct xdg_surface_interface kXdgSurfaceImpl = {
+const struct xdg_surface_interface kImpl = {
     .destroy             = destroy,
     .get_toplevel        = get_toplevel,
     .get_popup           = get_popup,
@@ -44,7 +44,7 @@ void new_xdg_surface(wl_client* client, int version, uint32_t id) {
     wl_client_post_no_memory(client);
     return;
   }
-  wl_resource_set_implementation(resource, &kXdgSurfaceImpl, nullptr, nullptr);
+  wl_resource_set_implementation(resource, &kImpl, nullptr, nullptr);
   LOG_DEBUG("xdg surface is created (client: %p, id: %u)", (void*)client, id);
 }
 }  // namespace yaza::xdg_surface

@@ -60,7 +60,7 @@ void set_minimized(wl_client* /*client*/, wl_resource* /*resource*/) {
   // TODO
 }
 
-const struct xdg_toplevel_interface kXdgToplevelImpl = {
+const struct xdg_toplevel_interface kImpl = {
     .destroy          = destroy,
     .set_parent       = set_parent,
     .set_title        = set_title,
@@ -86,7 +86,7 @@ void new_xdg_toplevel(wl_client* client, int version, uint32_t id) {
     wl_client_post_no_memory(client);
     return;
   }
-  wl_resource_set_implementation(resource, &kXdgToplevelImpl, nullptr, nullptr);
+  wl_resource_set_implementation(resource, &kImpl, nullptr, nullptr);
   LOG_DEBUG("xdg toplevel is created (client: %p, id: %u)", (void*)client, id);
 }
 }  // namespace yaza::xdg_toplevel

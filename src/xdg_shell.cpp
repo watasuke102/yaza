@@ -20,7 +20,7 @@ void pong(
     wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*serial*/) {
   // TODO
 }
-const struct xdg_wm_base_interface kXdgWmBaseImpl = {
+const struct xdg_wm_base_interface kImpl = {
     .destroy           = destroy,
     .create_positioner = create_positioner,
     .get_xdg_surface   = get_xdg_surface,
@@ -37,6 +37,6 @@ void bind(wl_client* client, void* data, uint32_t version, uint32_t id) {
     wl_client_post_no_memory(client);
     return;
   }
-  wl_resource_set_implementation(resource, &kXdgWmBaseImpl, server, nullptr);
+  wl_resource_set_implementation(resource, &kImpl, server, nullptr);
 }
 }  // namespace yaza::xdg_shell

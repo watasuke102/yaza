@@ -18,7 +18,7 @@ void subtract(wl_client* /*client*/, wl_resource* /*resource*/, int32_t /*x*/,
   // TODO
 }
 
-const struct wl_region_interface kRegionImpl = {
+const struct wl_region_interface kImpl = {
     .destroy  = destroy,
     .add      = add,
     .subtract = subtract,
@@ -32,6 +32,6 @@ void new_region(wl_client* client, uint32_t id) {
     wl_client_post_no_memory(client);
     return;
   }
-  wl_resource_set_implementation(resource, &kRegionImpl, nullptr, nullptr);
+  wl_resource_set_implementation(resource, &kImpl, nullptr, nullptr);
 }
 }  // namespace yaza::region
