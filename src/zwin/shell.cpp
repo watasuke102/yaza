@@ -1,20 +1,22 @@
 #include "zwin/shell.hpp"
 
 #include <wayland-server-core.h>
+#include <wayland-server-protocol.h>
 #include <zwin-shell-protocol.h>
 
 #include <cstdint>
 
 #include "server.hpp"
+#include "zwin/bounded.hpp"
 
 namespace yaza::zwin::shell {
 namespace {
-void destroy(wl_client* /*client*/, wl_resource* /*resource*/) {
-  // TODO
+void destroy(wl_client* /*client*/, wl_resource* resource) {
+  wl_resource_destroy(resource);
 }
-void get_bounded(wl_client* /*client*/, wl_resource* /*resource*/,
-    uint32_t /*id*/, wl_resource* /*virtual_object*/, wl_array* /*half_size*/) {
-  // TODO
+void get_bounded(wl_client* client, wl_resource* /*resource*/, uint32_t id,
+    wl_resource* /*virtual_object*/, wl_array* /*half_size*/) {
+  bounded::create(client, id);
 }
 void get_expansive(wl_client* /*client*/, wl_resource* /*resource*/,
     uint32_t /*id*/, wl_resource* /*virtual_object*/) {

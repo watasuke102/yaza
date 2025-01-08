@@ -1,17 +1,19 @@
 #include "zwin/compositor.hpp"
 
 #include <wayland-server-core.h>
+#include <wayland-server-protocol.h>
 #include <zwin-protocol.h>
 
 #include <cstdint>
 
 #include "server.hpp"
+#include "zwin/virtual_object.hpp"
 
 namespace yaza::zwin::compositor {
 namespace {
 void create_virtual_object(
-    wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*id*/) {
-  // TODO
+    wl_client* client, wl_resource* /*resource*/, uint32_t id) {
+  virtual_object::create(client, id);
 }
 void create_region(
     wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*id*/) {
