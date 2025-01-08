@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "common.hpp"
 #include "server.hpp"
 #include "zwin/bounded.hpp"
 
@@ -14,13 +15,21 @@ namespace {
 void destroy(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
 }
-void get_bounded(wl_client* client, wl_resource* /*resource*/, uint32_t id,
-    wl_resource* /*virtual_object*/, wl_array* /*half_size*/) {
-  bounded::create(client, id);
+void get_bounded(wl_client* client, wl_resource* resource, uint32_t id,
+    wl_resource* /*virtual_object*/, wl_array* half_size) {
+  auto* server =
+      static_cast<yaza::Server*>(wl_resource_get_user_data(resource));
+  auto* bounded_resource = bounded::create(client, id);
+  if (bounded_resource) {
+    zwn_bounded_send_configure(
+        bounded_resource, half_size, server->next_serial());
+  }
 }
-void get_expansive(wl_client* /*client*/, wl_resource* /*resource*/,
+void get_expansive(wl_client* client, wl_resource* /*resource*/,
     uint32_t /*id*/, wl_resource* /*virtual_object*/) {
   // TODO
+  wl_client_post_implementation_error(
+      client, "expansive app is not yet supported");
 }
 const struct zwn_shell_interface kImpl = {
     .destroy       = destroy,

@@ -1,6 +1,7 @@
 #include "zwin/bounded.hpp"
 
 #include <wayland-server-core.h>
+#include <wayland-server-protocol.h>
 #include <zwin-shell-protocol.h>
 
 #include <cstdint>
@@ -35,13 +36,14 @@ const struct zwn_bounded_interface kImpl = {
 };
 }  // namespace
 
-void create(wl_client* client, uint32_t id) {
+wl_resource* create(wl_client* client, uint32_t id) {
   wl_resource* resource =
       wl_resource_create(client, &zwn_bounded_interface, 1, id);
   if (resource == nullptr) {
     wl_client_post_no_memory(client);
-    return;
+    return nullptr;
   }
   wl_resource_set_implementation(resource, &kImpl, nullptr, nullptr);
+  return resource;
 }
 }  // namespace yaza::zwin::bounded

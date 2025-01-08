@@ -12,7 +12,8 @@ class Server {
   DISABLE_MOVE_AND_COPY(Server);
   Server();
   ~Server();
-  void start();
+  void     start();
+  uint32_t next_serial();
 
  private:
   bool        is_started_;

@@ -5,5 +5,5 @@
 #include <cstdint>
 
 namespace yaza::zwin::bounded {
-void create(wl_client* client, uint32_t id);
+wl_resource* create(wl_client* client, uint32_t id);
 }

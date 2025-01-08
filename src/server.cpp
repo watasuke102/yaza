@@ -6,6 +6,7 @@
 #include <zwin-protocol.h>
 #include <zwin-shell-protocol.h>
 
+#include <cstdint>
 #include <exception>
 
 #include "common.hpp"
@@ -139,5 +140,8 @@ void Server::start() {
   this->is_started_ = true;
   LOG_INFO("server started at %s", this->socket_);
   wl_display_run(this->wl_display_);
+}
+uint32_t Server::next_serial() {
+  return wl_display_next_serial(this->wl_display_);
 }
 }  // namespace yaza
