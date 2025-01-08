@@ -16,7 +16,15 @@ class Server {
 
  private:
   bool        is_started_;
-  wl_display* wl_display_;
   const char* socket_;
+
+  wl_display* wl_display_;
+  wl_global*  compositor_;
+  wl_global*  xdg_wm_base_;
+  wl_global*  zwin_compositor_;
+  wl_global*  zwin_seat_;
+  wl_global*  zwin_shell_;
+  wl_global*  zwin_shm_;
+  wl_global*  zwin_gles_v32_;
 };
 }  // namespace yaza

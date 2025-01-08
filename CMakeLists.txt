@@ -44,12 +44,19 @@ ExternalProject_Add(wayland-protocols
   CONFIGURE_COMMAND cd <SOURCE_DIR> && ${MESON_PROGRAM} setup      build-${TARGET_ABI} ${MESON_ADDITIONAL_ARG} --prefix <INSTALL_DIR> -Dtests=false
   BUILD_COMMAND     cd <SOURCE_DIR> && ${MESON_PROGRAM} compile -C build-${TARGET_ABI}
   INSTALL_COMMAND   cd <SOURCE_DIR> && ${MESON_PROGRAM} install -C build-${TARGET_ABI}
-  BUILD_BYPRODUCTS 
   DEPENDS libffi
 )
+ExternalProject_Add(zwin-protocols
+  GIT_REPOSITORY https://github.com/watasuke102/zwin GIT_TAG main GIT_SHALLOW true
+  SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/3rdparty/zwin-protocols
+  INSTALL_DIR ${EXTERNAL_PROJ_PREFIX}
+  UPDATE_COMMAND ""
+  CONFIGURE_COMMAND cd <SOURCE_DIR> && ${MESON_PROGRAM} setup      build-${TARGET_ABI} ${MESON_ADDITIONAL_ARG} --prefix <INSTALL_DIR>
+  BUILD_COMMAND     cd <SOURCE_DIR> && ${MESON_PROGRAM} compile -C build-${TARGET_ABI}
+  INSTALL_COMMAND   cd <SOURCE_DIR> && ${MESON_PROGRAM} install -C build-${TARGET_ABI}
+)
 find_program(WAYLAND_SCANNER_PROGRAM NAMES wayland-scanner REQUIRED)
-set(PROTO_HEADER_DIR ${CMAKE_BINARY_DIR}/protocols)
-set(PROTO_BASE_DIR ${EXTERNAL_PROJ_PREFIX}/share/wayland-protocols)
+set(GENERATED_PROTO_DST ${CMAKE_BINARY_DIR}/protocols)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_COLOR_DIAGNOSTICS ON) # for CMake >= 3.24
@@ -64,10 +71,12 @@ file(
   GLOB_RECURSE headers
   ${CMAKE_CURRENT_LIST_DIR}/inc/*.hpp
 )
-set(inc_dirs
+set(local_inc_dirs
   ${CMAKE_CURRENT_LIST_DIR}/inc
+)
+set(lib_inc_dirs
   ${EXTERNAL_PROJ_PREFIX}/include
-  ${PROTO_HEADER_DIR}
+  ${GENERATED_PROTO_DST}
 )
 set(link_libs
   ${EXTERNAL_PROJ_PREFIX}/lib/libwayland-server.a
@@ -75,9 +84,9 @@ set(link_libs
 )
 
 function(generate_proto_header file_name xml_relative_path)
-  set(source_output ${PROTO_HEADER_DIR}/${file_name}.c)
-  set(header_output ${PROTO_HEADER_DIR}/${file_name}.h)
-  set(xml_path ${PROTO_BASE_DIR}/${xml_relative_path})
+  set(source_output ${GENERATED_PROTO_DST}/${file_name}.c)
+  set(header_output ${GENERATED_PROTO_DST}/${file_name}.h)
+  set(xml_path ${EXTERNAL_PROJ_PREFIX}/share/${xml_relative_path})
   add_custom_command(
     OUTPUT ${source_output}
     COMMAND ${WAYLAND_SCANNER_PROGRAM} private-code ${xml_path} ${source_output}
@@ -95,11 +104,15 @@ function(generate_proto_header file_name xml_relative_path)
   set(sources ${sources} ${source_output} PARENT_SCOPE)
   set(headers ${headers} ${header_output} PARENT_SCOPE)
 endfunction(generate_proto_header)
-generate_proto_header("xdg-shell-protocol" "stable/xdg-shell/xdg-shell.xml")
+generate_proto_header("xdg-shell-protocol" "wayland-protocols/stable/xdg-shell/xdg-shell.xml")
+generate_proto_header("zwin-protocol" "zwin/zwin.xml")
+generate_proto_header("zwin-shell-protocol" "zwin/zwin-shell.xml")
+generate_proto_header("zwin-gles-v32-protocol" "zwin/zwin-gles-v32.xml")
 
 add_executable(${PROJECT_NAME} ${sources} ${headers})
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Wno-gnu-zero-variadic-macro-arguments -ffile-prefix-map=${CMAKE_SOURCE_DIR}/src/=)
-target_include_directories(${PROJECT_NAME} PUBLIC ${inc_dirs})
+target_include_directories(${PROJECT_NAME} PRIVATE ${local_inc_dirs})
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${lib_inc_dirs})
 target_link_libraries(${PROJECT_NAME} ${link_libs})
 
 add_dependencies(${PROJECT_NAME} wayland)
