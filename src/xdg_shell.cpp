@@ -1,6 +1,8 @@
 
 #include "server.hpp"
 #include "xdg-shell-protocol.h"
+#include "xdg_surface.hpp"
+
 namespace yaza::xdg_shell {
 namespace {
 void destroy(wl_client* /*client*/, wl_resource* resource) {
@@ -10,9 +12,9 @@ void create_positioner(
     wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*id*/) {
   // TODO
 }
-void get_xdg_surface(wl_client* /*client*/, wl_resource* /*resource*/,
-    uint32_t /*id*/, wl_resource* /*surface_resource*/) {
-  // TODO
+void get_xdg_surface(wl_client* client, wl_resource* resource, uint32_t id,
+    wl_resource* /*surface_resource*/) {
+  xdg_surface::new_xdg_surface(client, wl_resource_get_version(resource), id);
 }
 void pong(
     wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*serial*/) {
