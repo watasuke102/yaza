@@ -8,6 +8,7 @@ fi
 set -v
 
 cmake \
+  -Wno-deprecated \
   -DCMAKE_SYSTEM_NAME=Android \
   -DCMAKE_SYSTEM_VERSION=31 \
   -DANDROID_PLATFORM=android-31 \

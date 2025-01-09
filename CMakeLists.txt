@@ -1,17 +1,41 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.17) # For GIT_SUBMODULES_RECURSE
 project(yaza LANGUAGES C CXX)
 
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
+if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/local.cmake)
+  include(${CMAKE_CURRENT_LIST_DIR}/local.cmake)
+endif()
+
 set(TARGET_ABI x86_64)
+set(ZEN_REMOTE_GRPC_SYSROOT ${GRPC_SYSROOT_NATIVE})
 if (CMAKE_ANDROID_ARCH_ABI)
   set(TARGET_ABI ${CMAKE_ANDROID_ARCH_ABI})
+  set(ZEN_REMOTE_GRPC_SYSROOT ${GRPC_SYSROOT_ANDROID})
 endif()
 set(EXTERNAL_PROJ_PREFIX ${CMAKE_CURRENT_LIST_DIR}/3rdparty/root-${TARGET_ABI})
-set(CMAKE_FIND_ROOT_PATH ${EXTERNAL_PROJ_PREFIX})
+list(APPEND CMAKE_FIND_ROOT_PATH ${EXTERNAL_PROJ_PREFIX})
 if (CMAKE_ANDROID_NDK)
   configure_file(${CMAKE_CURRENT_LIST_DIR}/meson_cross.txt.in meson_cross.txt)
   set(MESON_ADDITIONAL_ARG --cross-file ${CMAKE_BINARY_DIR}/meson_cross.txt)
   set(CONFIGURE_ADDITIONAL_ARG --host=aarch64-unknown-linux-android CC=${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang CXX=${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang++ LD=${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/ld "CPP=${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang -E" "CXXCPP=${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang++ -E")
 endif()
+
+# Use FetchContent (not ExternalProject) in order to re-use CMake toolchain configrations
+set(ZEN_REMOTE_REQUIRED_VERSION 0.1.2)
+set(ZEN_REMOTE_GRAPHICS_API GLESv3)
+set(ZEN_REMOTE_SERVER ON)
+set(ZEN_REMOTE_CLIENT OFF)
+set(ZEN_REMOTE_PROTOC_EXECUTABLE          ${GRPC_SYSROOT_NATIVE}/bin/protoc)
+set(ZEN_REMOTE_GRPC_CPP_PLUGIN_EXECUTABLE ${GRPC_SYSROOT_NATIVE}/bin/grpc_cpp_plugin)
+set(CMAKE_CXX_FLAGS "-DBOOST_NO_CXX98_FUNCTION_BASE")
+include(FetchContent)
+FetchContent_Declare(zen-remote
+  GIT_REPOSITORY https://github.com/watasuke102/zen-remote GIT_TAG main GIT_SHALLOW true GIT_SUBMODULES_RECURSE true
+  SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/3rdparty/zen-remote
+  PATCH_COMMAND sed -i "s|SHARED|STATIC|" <SOURCE_DIR>/src/server/CMakeLists.txt
+)
+FetchContent_MakeAvailable(zen-remote)
+set(CMAKE_CXX_FLAGS "")
 
 find_program(MESON_PROGRAM NAMES meson REQUIRED)
 include(ExternalProject)
@@ -82,6 +106,7 @@ set(lib_inc_dirs
 set(link_libs
   ${EXTERNAL_PROJ_PREFIX}/lib/libwayland-server.a
   ${EXTERNAL_PROJ_PREFIX}/lib/libffi.a
+  zen_remote::server
 )
 
 function(generate_proto_header file_name xml_relative_path)
