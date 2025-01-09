@@ -16,7 +16,7 @@
 #include "zwin/gles_v32.hpp"
 #include "zwin/seat.hpp"
 #include "zwin/shell.hpp"
-#include "zwin/shm.hpp"
+#include "zwin/shm/shm.hpp"
 
 namespace yaza {
 Server::Server() : is_started_(false) {

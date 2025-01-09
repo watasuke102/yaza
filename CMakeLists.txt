@@ -51,9 +51,10 @@ ExternalProject_Add(zwin-protocols
   SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/3rdparty/zwin-protocols
   INSTALL_DIR ${EXTERNAL_PROJ_PREFIX}
   UPDATE_COMMAND ""
-  CONFIGURE_COMMAND cd <SOURCE_DIR> && ${MESON_PROGRAM} setup      build-${TARGET_ABI} ${MESON_ADDITIONAL_ARG} --prefix <INSTALL_DIR>
+  CONFIGURE_COMMAND cd <SOURCE_DIR> && ${MESON_PROGRAM} setup      build-${TARGET_ABI} ${MESON_ADDITIONAL_ARG} --prefix <INSTALL_DIR> -Dtests=false
   BUILD_COMMAND     cd <SOURCE_DIR> && ${MESON_PROGRAM} compile -C build-${TARGET_ABI}
   INSTALL_COMMAND   cd <SOURCE_DIR> && ${MESON_PROGRAM} install -C build-${TARGET_ABI}
+  DEPENDS wayland
 )
 find_program(WAYLAND_SCANNER_PROGRAM NAMES wayland-scanner REQUIRED)
 set(GENERATED_PROTO_DST ${CMAKE_BINARY_DIR}/protocols)
@@ -90,13 +91,13 @@ function(generate_proto_header file_name xml_relative_path)
   add_custom_command(
     OUTPUT ${source_output}
     COMMAND ${WAYLAND_SCANNER_PROGRAM} private-code ${xml_path} ${source_output}
-    DEPENDS wayland-protocols ${WAYLAND_SCANNER_PROGRAM}
+    DEPENDS wayland-protocols zwin-protocols ${WAYLAND_SCANNER_PROGRAM}
     VERBATIM
   )
   add_custom_command(
     OUTPUT ${header_output}
     COMMAND ${WAYLAND_SCANNER_PROGRAM} server-header ${xml_path} ${header_output}
-    DEPENDS wayland-protocols ${WAYLAND_SCANNER_PROGRAM}
+    DEPENDS wayland-protocols zwin-protocols ${WAYLAND_SCANNER_PROGRAM}
     VERBATIM
   )
   set_source_files_properties(${source_output} GENERATED)

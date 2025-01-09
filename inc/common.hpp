@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdio>
+#include <cstdlib>
 
 #define DISABLE_MOVE_AND_COPY(Class)                                           \
   Class(const Class&)            = delete;                                     \
@@ -22,3 +23,8 @@
 #define LOG_DEBUG(fmt, ...)                                                    \
   std::printf(                                                                 \
       "[yaza:debug|%15s#%04d] " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+
+template <typename T>
+inline T zalloc(size_t size) {
+  return static_cast<T>(calloc(1, size));
+}
