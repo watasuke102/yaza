@@ -27,6 +27,8 @@ HeaderFilterRegex: 'inc/.*\.hpp'
 CheckOptions:
   - key: cppcoreguidelines-avoid-non-const-global-variables.AllowInternalLinkage
     value: true
+  - key: misc-non-private-member-variables-in-classes.IgnorePublicMemberVariables
+    value: true
 
   - key: readability-identifier-naming.VariableCase
     value: lower_case
@@ -75,4 +77,4 @@ CheckOptions:
   - key: readability-identifier-naming.TemplateTemplateParameterCase
     value: UPPER_CASE
   - key: readability-identifier-naming.TypeTemplateParameterCase
-    value: UPPER_CASE
+    value: CamelCase

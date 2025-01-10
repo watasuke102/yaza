@@ -1,20 +1,21 @@
+
 #include "remote.hpp"
 
+#include <wayland-server-core.h>
+#include <wayland-util.h>
 #include <zen-remote/logger.h>
 #include <zen-remote/loop.h>
 #include <zen-remote/server/peer-manager.h>
 
 #include <cassert>
+#include <cstddef>
 #include <exception>
 #include <functional>
 #include <memory>
 #include <optional>
 
 #include "common.hpp"
-#include "zen-remote/server/channel.h"
-#include "zen-remote/server/gl-buffer.h"
-#include "zen-remote/server/peer.h"
-#include "zen-remote/server/session.h"
+#include "util/signal.hpp"
 
 namespace yaza::remote {
 namespace {
@@ -96,38 +97,6 @@ class Loop : public zen::remote::ILoop {
   wl_event_loop* wl_loop_;
 };
 
-class Session {
- public:
-  DISABLE_MOVE_AND_COPY(Session);
-  explicit Session(const std::shared_ptr<zen::remote::server::IPeer>& peer,
-      wl_event_loop* wl_loop, std::function<void()> on_disconnect)
-      : wl_loop_(wl_loop)
-      , peer_id_(peer->id())
-      , session_(zen::remote::server::CreateSession(
-            std::make_unique<Loop>(this->wl_loop_))) {
-    if (!this->session_->Connect(peer)) {
-      LOG_WARN("Failed to connect with peer %lu", peer->id());
-      throw std::exception();
-    }
-    // FIXME: calling on_disconnect() in zen-remote may raises SIGSEGV
-    this->session_->on_disconnect.Connect(on_disconnect);
-    this->channel_ = zen::remote::server::CreateChannel(this->session_);
-  }
-  ~Session() {
-    LOG_DEBUG("(Session destructor, peer id=%lu)", peer_id_);
-  }
-  [[nodiscard]] uint64_t id() const {
-    return this->peer_id_;
-  }
-
- private:
-  wl_event_loop* wl_loop_;
-  uint64_t       peer_id_;
-
-  std::shared_ptr<zen::remote::server::ISession> session_;
-  std::shared_ptr<zen::remote::server::IChannel> channel_;
-};
-
 class Remote {
  public:
   DISABLE_MOVE_AND_COPY(Remote);
@@ -159,6 +128,7 @@ class Remote {
         return;
       }
       LOG_DEBUG("session is established with peer id=%lu", peer_id);
+      this->events_.session_established_.emit(this->current_session_->get());
     });
 
     this->peer_manager_->on_peer_lost.Connect([this](uint64_t peer_id) {
@@ -170,8 +140,19 @@ class Remote {
   }
   ~Remote() = default;
 
+  void listen_session_established(util::Listener<Session*>& listener) {
+    this->events_.session_established_.add_listener(listener);
+  }
+  void listen_session_disconnected(util::Listener<std::nullptr_t*>& listener) {
+    this->events_.session_disconnected_.add_listener(listener);
+  }
+
  private:
   wl_event_loop* wl_loop_;
+  struct {
+    util::Signal<Session*>        session_established_;   // data=Session
+    util::Signal<std::nullptr_t*> session_disconnected_;  // data=nullptr
+  } events_;
 
   std::optional<std::unique_ptr<Session>>            current_session_;
   std::unique_ptr<zen::remote::server::IPeerManager> peer_manager_;
@@ -181,12 +162,45 @@ class Remote {
     LOG_DEBUG(
         "disconnecting session (id=%lu)", this->current_session_->get()->id());
     this->current_session_ = std::nullopt;
+    this->events_.session_disconnected_.emit(nullptr);
   }
 };
+std::unique_ptr<Remote> remote;
 }  // namespace
 
+Session::Session(const std::shared_ptr<zen::remote::server::IPeer>& peer,
+    wl_event_loop* wl_loop, std::function<void()> on_disconnect)
+    : wl_loop_(wl_loop)
+    , peer_id_(peer->id())
+    , session_(zen::remote::server::CreateSession(
+          std::make_unique<Loop>(this->wl_loop_))) {
+  if (!this->session_->Connect(peer)) {
+    LOG_WARN("Failed to connect with peer %lu", peer->id());
+    throw std::exception();
+  }
+  // FIXME: calling on_disconnect() in zen-remote may raises SIGSEGV
+  this->session_->on_disconnect.Connect(on_disconnect);
+  this->channel_ = zen::remote::server::CreateChannel(this->session_);
+}
+Session::~Session() {
+  LOG_DEBUG("(Session destructor, peer id=%lu)", peer_id_);
+}
+[[nodiscard]] uint64_t Session::id() const {
+  return this->peer_id_;
+}
+[[nodiscard]] std::shared_ptr<zen::remote::server::IChannel> Session::channel()
+    const {
+  return this->channel_;
+}
+
+void listen_session_established(util::Listener<Session*>& listener) {
+  remote->listen_session_established(listener);
+}
+void listen_session_disconnected(util::Listener<std::nullptr_t*>& listener) {
+  remote->listen_session_disconnected(listener);
+}
 void create(wl_event_loop* loop) {
   zen::remote::InitializeLogger(std::make_unique<LogSink>());
-  auto* remote = new Remote(loop);
+  remote = std::make_unique<Remote>(loop);
 }
 }  // namespace yaza::remote
