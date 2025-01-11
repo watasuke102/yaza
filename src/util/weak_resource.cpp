@@ -17,7 +17,24 @@ WeakResource::WeakResource() {
   };
   wl_list_init(&this->resource_destroy_listener_.link);
 }
-
+WeakResource::WeakResource(const WeakResource& other) : WeakResource() {
+  this->link(other.resource_);
+}
+WeakResource::WeakResource(WeakResource&& other) noexcept : WeakResource() {
+  this->link(other.resource_);
+}
+WeakResource& WeakResource::operator=(const WeakResource& other) {
+  if (this != &other) {
+    this->link(other.resource_);
+  }
+  return *this;
+}
+WeakResource& WeakResource::operator=(WeakResource&& other) noexcept {
+  if (this != &other) {
+    this->link(other.resource_);
+  }
+  return *this;
+}
 WeakResource::~WeakResource() {
   this->unlink();
 }

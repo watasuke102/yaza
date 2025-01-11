@@ -2,14 +2,16 @@
 
 #include <wayland-server.h>
 
-#include "common.hpp"
 #include "zwin/shm/shm_buffer.hpp"
 
 namespace yaza::util {
 class WeakResource {
  public:
-  DISABLE_MOVE_AND_COPY(WeakResource);
   WeakResource();
+  WeakResource(const WeakResource&);
+  WeakResource(WeakResource&&) noexcept;
+  WeakResource& operator=(const WeakResource&);
+  WeakResource& operator=(WeakResource&&) noexcept;
   ~WeakResource();
 
   void link(wl_resource* resource);
