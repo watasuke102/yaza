@@ -10,6 +10,7 @@
 #include "zwin/gles_v32/gl_buffer.hpp"
 #include "zwin/gles_v32/gl_program.hpp"
 #include "zwin/gles_v32/gl_shader.hpp"
+#include "zwin/gles_v32/gl_vertex_array.hpp"
 
 namespace yaza::zwin::gles_v32 {
 namespace {
@@ -42,8 +43,8 @@ void create_gl_sampler(
   // TODO
 }
 void create_gl_vertex_array(
-    wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*id*/) {
-  // TODO!
+    wl_client* client, wl_resource* /*resource*/, uint32_t id) {
+  gl_vertex_array::create(client, id);
 }
 void create_gl_base_technique(wl_client* /*client*/, wl_resource* /*resource*/,
     uint32_t /*id*/, wl_resource* /*unit*/) {
