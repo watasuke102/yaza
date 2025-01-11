@@ -11,7 +11,7 @@
 
 #include "common.hpp"
 #include "compositor.hpp"
-#include "remote.hpp"
+#include "remote/remote.hpp"
 #include "xdg_shell.hpp"
 #include "zwin/compositor.hpp"
 #include "zwin/gles_v32.hpp"
@@ -31,7 +31,7 @@ Server::Server() : is_started_(false) {
   this->socket_ = wl_display_add_socket_auto(this->wl_display_);
   setenv("WAYLAND_DISPLAY", this->socket_, true);
 
-  remote::create(wl_display_get_event_loop(wl_display_));
+  remote::init(wl_display_get_event_loop(wl_display_));
 
   this->compositor_ = wl_global_create(
       this->wl_display_, &wl_compositor_interface, 5, this, compositor::bind);
