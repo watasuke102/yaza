@@ -16,21 +16,6 @@
 #include "zwin/shm/shm_buffer.hpp"
 
 namespace yaza::zwin::gles_v32::gl_shader {
-namespace {
-void destroy(wl_client* /*client*/, wl_resource* resource) {
-  wl_resource_destroy(resource);
-}
-const struct zwn_gl_shader_interface kImpl = {
-    .destroy = destroy,
-};  // namespace
-
-void destroy(wl_resource* resource) {
-  auto* self = static_cast<std::shared_ptr<GlShader>*>(
-      wl_resource_get_user_data(resource));
-  self->reset();
-}
-}  // namespace
-
 GlShader::GlShader(
     wl_resource* resource, zwin::shm_buffer::ShmBuffer* buffer, uint32_t type)
     : type_(type), buffer_(buffer), resource_(resource) {
@@ -55,6 +40,20 @@ void GlShader::sync() {
   }
 }
 
+namespace {
+void destroy(wl_client* /*client*/, wl_resource* resource) {
+  wl_resource_destroy(resource);
+}
+const struct zwn_gl_shader_interface kImpl = {
+    .destroy = destroy,
+};  // namespace
+
+void destroy(wl_resource* resource) {
+  auto* self = static_cast<std::shared_ptr<GlShader>*>(
+      wl_resource_get_user_data(resource));
+  self->reset();
+}
+}  // namespace
 void create(
     wl_client* client, uint32_t id, wl_resource* buffer, uint32_t type) {
   wl_resource* resource =

@@ -102,6 +102,7 @@ set(local_inc_dirs
 set(lib_inc_dirs
   ${EXTERNAL_PROJ_PREFIX}/include
   ${GENERATED_PROTO_DST}
+  ${CMAKE_CURRENT_LIST_DIR}/3rdparty/zen-remote/include
 )
 set(link_libs
   ${EXTERNAL_PROJ_PREFIX}/lib/libwayland-server.a

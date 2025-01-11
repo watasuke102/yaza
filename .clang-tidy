@@ -29,6 +29,8 @@ CheckOptions:
     value: true
   - key: misc-non-private-member-variables-in-classes.IgnorePublicMemberVariables
     value: true
+  - key: misc-unused-parameters.StrictMode
+    value: true # make autofix available even for the empty function
 
   - key: readability-identifier-naming.VariableCase
     value: lower_case
