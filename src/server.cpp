@@ -14,7 +14,7 @@
 #include "remote/remote.hpp"
 #include "xdg_shell.hpp"
 #include "zwin/compositor.hpp"
-#include "zwin/gles_v32.hpp"
+#include "zwin/gles_v32/gles_v32.hpp"
 #include "zwin/seat.hpp"
 #include "zwin/shell.hpp"
 #include "zwin/shm/shm.hpp"
@@ -31,7 +31,7 @@ Server::Server() : is_started_(false) {
   this->socket_ = wl_display_add_socket_auto(this->wl_display_);
   setenv("WAYLAND_DISPLAY", this->socket_, true);
 
-  remote::init(wl_display_get_event_loop(wl_display_));
+  remote::init(this->loop());
 
   this->compositor_ = wl_global_create(
       this->wl_display_, &wl_compositor_interface, 5, this, compositor::bind);
@@ -146,5 +146,8 @@ void Server::start() {
 }
 uint32_t Server::next_serial() {
   return wl_display_next_serial(this->wl_display_);
+}
+wl_event_loop* Server::loop() {
+  return wl_display_get_event_loop(this->wl_display_);
 }
 }  // namespace yaza
