@@ -1,10 +1,10 @@
-#include "region.hpp"
+#include "wayland/region.hpp"
 
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
 #include <wayland-server.h>
 
-namespace yaza::region {
+namespace yaza::wayland::region {
 namespace {
 void destroy(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
@@ -25,7 +25,7 @@ const struct wl_region_interface kImpl = {
 };
 }  // namespace
 
-void new_region(wl_client* client, uint32_t id) {
+void create(wl_client* client, uint32_t id) {
   wl_resource* resource =
       wl_resource_create(client, &wl_region_interface, 1, id);
   if (resource == nullptr) {
@@ -34,4 +34,4 @@ void new_region(wl_client* client, uint32_t id) {
   }
   wl_resource_set_implementation(resource, &kImpl, nullptr, nullptr);
 }
-}  // namespace yaza::region
+}  // namespace yaza::wayland::region

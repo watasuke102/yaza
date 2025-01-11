@@ -1,4 +1,4 @@
-#include "xdg_toplevel.hpp"
+#include "xdg_shell/xdg_toplevel.hpp"
 
 #include <wayland-server-protocol.h>
 
@@ -6,7 +6,7 @@
 #include "wayland-server-core.h"
 #include "xdg-shell-protocol.h"
 
-namespace yaza::xdg_toplevel {
+namespace yaza::xdg_shell::xdg_toplevel {
 namespace {
 void destroy(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
@@ -79,7 +79,7 @@ const struct xdg_toplevel_interface kImpl = {
 
 }  // namespace
 
-void new_xdg_toplevel(wl_client* client, int version, uint32_t id) {
+void create(wl_client* client, int version, uint32_t id) {
   wl_resource* resource =
       wl_resource_create(client, &xdg_toplevel_interface, version, id);
   if (resource == nullptr) {
@@ -89,4 +89,4 @@ void new_xdg_toplevel(wl_client* client, int version, uint32_t id) {
   wl_resource_set_implementation(resource, &kImpl, nullptr, nullptr);
   LOG_DEBUG("xdg toplevel is created (client: %p, id: %u)", (void*)client, id);
 }
-}  // namespace yaza::xdg_toplevel
+}  // namespace yaza::xdg_shell::xdg_toplevel

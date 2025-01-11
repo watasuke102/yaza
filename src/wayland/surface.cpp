@@ -1,13 +1,14 @@
-#include "surface.hpp"
+#include "wayland/surface.hpp"
+
+#include <wayland-server-core.h>
+#include <wayland-server-protocol.h>
+#include <wayland-server.h>
 
 #include <exception>
 
 #include "common.hpp"
-#include "wayland-server-core.h"
-#include "wayland-server-protocol.h"
-#include "wayland-server.h"
 
-namespace yaza::surface {
+namespace yaza::wayland::surface {
 namespace {
 void destroy(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
@@ -76,7 +77,7 @@ class Surface {
   }
   ~Surface() {
   }
-  inline wl_resource* resource() {
+  wl_resource* resource() {
     return this->resource_;
   }
 
@@ -84,16 +85,15 @@ class Surface {
   wl_resource* resource_;
 };
 
-void delete_surface(wl_resource* resource) {
+void destroy(wl_resource* resource) {
   auto* surface = static_cast<Surface*>(wl_resource_get_user_data(resource));
   delete surface;
 }
 }  // namespace
 
-void new_surface(wl_client* client, wl_resource* resource, uint32_t id) {
+void create(wl_client* client, wl_resource* resource, uint32_t id) {
   auto* surface = new Surface(client, resource, id);
   LOG_DEBUG("surface created (id: %u)", id);
-  wl_resource_set_implementation(
-      surface->resource(), &kImpl, surface, delete_surface);
+  wl_resource_set_implementation(surface->resource(), &kImpl, surface, destroy);
 }
-}  // namespace yaza::surface
+}  // namespace yaza::wayland::surface
