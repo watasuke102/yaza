@@ -40,5 +40,6 @@ class Remote {
 };
 extern std::unique_ptr<Remote> g_remote;  // NOLINT
 
+void terminate();
 void init(wl_event_loop* loop);
 }  // namespace yaza::remote

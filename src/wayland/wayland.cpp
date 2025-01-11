@@ -5,7 +5,7 @@
 
 namespace yaza::wayland {
 bool init(wl_display* display, Server* server) {
-  // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
   if (!wl_global_create(display, &wl_compositor_interface, 5, server,
           wayland::compositor::bind)) {
     LOG_ERR("Failed to create global (compositor)");

@@ -85,6 +85,7 @@ Remote::Remote(wl_event_loop* loop)
   });
 }
 Remote::~Remote() {
+  LOG_DEBUG("destroying Remote");
   if (this->current_session_.has_value()) {
     this->disconnect();
   }
@@ -108,6 +109,9 @@ void Remote::disconnect() {
   this->events_.session_disconnected_.emit(nullptr);
 }
 
+void terminate() {
+  g_remote = nullptr;
+}
 void init(wl_event_loop* loop) {
   zen::remote::InitializeLogger(std::make_unique<LogSink>());
   g_remote = std::make_unique<Remote>(loop);

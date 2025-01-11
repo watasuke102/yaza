@@ -25,8 +25,7 @@ void vprintf(const char* tag, Severity s, const char* file, int line,
   std::vprintf(format, arg);
   (void)std::putchar('\n');
 }
-// NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay,
-// cert-dcl50-cpp)
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay,cert-dcl50-cpp)
 void printf(const char* tag, Severity s, const char* file, int line,
     const char* __restrict format, ...) {
   va_list args;
@@ -34,6 +33,5 @@ void printf(const char* tag, Severity s, const char* file, int line,
   log::vprintf(tag, s, file, line, format, args);
   va_end(args);
 }
-// NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay,
-// cert-dcl50-cpp)
+// NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay,cert-dcl50-cpp)
 }  // namespace yaza::log
