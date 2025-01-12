@@ -15,13 +15,13 @@
 
 namespace yaza::zwin::gles_v32::gl_vertex_array {
 struct VertexAttribute {
-  int32_t            size_;
-  uint32_t           type_;
-  int32_t            stride_;
-  uint64_t           offset_;
-  bool               normalized_;
-  bool               gl_buffer_changed_;
-  util::WeakResource gl_buffer_;
+  int32_t                                  size_;
+  uint32_t                                 type_;
+  int32_t                                  stride_;
+  uint64_t                                 offset_;
+  bool                                     normalized_;
+  bool                                     gl_buffer_changed_;
+  util::WeakResource<gl_buffer::GlBuffer*> gl_buffer_;
 
   bool enability_changed_;
   bool enabled_;
@@ -52,8 +52,7 @@ void GlVertexArray::commit() {
     attrib.enability_changed_ = false;
     attrib.gl_buffer_changed_ = false;
 
-    auto* buffer =
-        static_cast<gl_buffer::GlBuffer*>(attrib.gl_buffer_.get_user_data());
+    auto* buffer = attrib.gl_buffer_.get_user_data();
     if (buffer) {
       buffer->commit();
     }

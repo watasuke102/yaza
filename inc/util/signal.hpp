@@ -17,7 +17,6 @@ using SignalHandler = std::function<void(EventDataType)>;
 template <typename D>
 class Signal;  // forward declaration for using `friend`
 
-// If I define member functions in .cpp, it fails to link (idk why)
 template <typename D>
 class Listener {
  public:

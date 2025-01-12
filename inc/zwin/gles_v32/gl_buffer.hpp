@@ -28,9 +28,9 @@ class GlBuffer {
 
  private:
   struct {
-    uint32_t           target_;
-    uint32_t           usage_;
-    util::WeakResource data_;
+    uint32_t                  target_;
+    uint32_t                  usage_;
+    util::WeakResource<void*> data_;
   } pending_;
   struct {
     bool                  data_damaged_;
