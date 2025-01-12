@@ -11,6 +11,7 @@ Checks: >
   performance-*,
   readability-*,
   -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-goto,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-no-malloc,

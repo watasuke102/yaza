@@ -6,6 +6,7 @@
 #include <zen-remote/server/peer.h>
 #include <zen-remote/server/session.h>
 
+#include <chrono>
 #include <cstddef>
 #include <memory>
 
@@ -20,21 +21,26 @@ class Remote {
   explicit Remote(wl_event_loop* loop);
   ~Remote();
 
+  [[nodiscard]] bool                             has_session();
   /// should be called while the session is available
   std::shared_ptr<zen::remote::server::IChannel> channel_nonnull();
 
   void listen_session_established(util::Listener<Session*>& listener);
   void listen_session_disconnected(util::Listener<std::nullptr_t*>& listener);
+  void listen_session_frame(util::Listener<std::nullptr_t*>& listener);
 
  private:
   wl_event_loop* wl_loop_;
   struct {
-    util::Signal<Session*>        session_established_;   // data=Session
-    util::Signal<std::nullptr_t*> session_disconnected_;  // data=nullptr
+    util::Signal<Session*>        session_established_;
+    util::Signal<std::nullptr_t*> session_disconnected_;
+    util::Signal<std::nullptr_t*> session_frame_;
   } events_;
 
   std::optional<std::unique_ptr<Session>>            current_session_;
   std::unique_ptr<zen::remote::server::IPeerManager> peer_manager_;
+  std::chrono::steady_clock::time_point              prev_frame_;
+  wl_event_source*                                   frame_timer_source_;
 
   void disconnect();
 };
