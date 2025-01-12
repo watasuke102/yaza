@@ -3,8 +3,8 @@
 #include <wayland-server-core.h>
 #include <zen-remote/server/gl-program.h>
 
+#include <list>
 #include <memory>
-#include <vector>
 
 #include "common.hpp"
 #include "zwin/gles_v32/gl_shader.hpp"
@@ -19,19 +19,20 @@ class GlProgram {
   void commit();
   void sync(bool force_sync);
 
-  void attach_shader(std::weak_ptr<gl_shader::GlShader>&& shader);
   void request_link();
+  void attach_shader(gl_shader::GlShader* shader);
+  void remove_shader(gl_shader::GlShader* shader);
 
  private:
   struct {
-    bool                                            damaged_     = false;
-    bool                                            should_link_ = false;
-    std::vector<std::weak_ptr<gl_shader::GlShader>> shaders_;
+    bool                            damaged_     = false;
+    bool                            should_link_ = false;
+    std::list<gl_shader::GlShader*> shaders_;
   } pending_;
   struct {
-    bool                                            linked_      = false;
-    bool                                            should_link_ = false;
-    std::vector<std::weak_ptr<gl_shader::GlShader>> shaders_;
+    bool                            linked_      = false;
+    bool                            should_link_ = false;
+    std::list<gl_shader::GlShader*> shaders_;
   } current_;
   wl_resource* resource_;
 

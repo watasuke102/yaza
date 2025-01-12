@@ -8,10 +8,8 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <iterator>
 #include <memory>
 #include <optional>
-#include <vector>
 
 #include "remote/remote.hpp"
 #include "zwin/gles_v32/gl_shader.hpp"
@@ -28,6 +26,12 @@ GlProgram::GlProgram(wl_resource* resource) : resource_(resource) {
 }
 GlProgram::~GlProgram() {
   LOG_DEBUG("destructor: GlProgram");
+  this->current_.shaders_.splice(
+      this->current_.shaders_.end(), this->pending_.shaders_);
+  for (auto* shader : this->current_.shaders_) {
+    shader->set_owner(std::nullopt);
+    delete shader;
+  }
 }
 
 void GlProgram::commit() {
@@ -43,9 +47,8 @@ void GlProgram::commit() {
     this->current_.should_link_ = true;
     this->current_.linked_      = true;
   }
-  this->current_.shaders_.insert(this->current_.shaders_.end(),
-      std::make_move_iterator(this->pending_.shaders_.begin()),
-      std::make_move_iterator(this->pending_.shaders_.end()));
+  this->current_.shaders_.splice(
+      this->current_.shaders_.end(), this->pending_.shaders_);
   this->pending_.shaders_.clear();
   this->pending_.damaged_     = false;
   this->pending_.should_link_ = false;
@@ -57,16 +60,10 @@ void GlProgram::sync(bool force_sync) {
         remote::g_remote->channel_nonnull());
   }
   bool should_attach = force_sync || this->current_.should_link_;
-  for (auto it = this->current_.shaders_.begin();
-      it != this->current_.shaders_.end();) {
-    if (auto shader = it->lock()) {
-      shader->sync();
-      if (should_attach) {
-        this->proxy_->get()->GlAttachShader(shader->remote_id());
-      }
-      ++it;
-    } else {
-      it = this->current_.shaders_.erase(it);
+  for (auto* shader : this->current_.shaders_) {
+    shader->sync();
+    if (should_attach) {
+      this->proxy_->get()->GlAttachShader(shader->remote_id());
     }
   }
   if (!should_attach) {
@@ -76,13 +73,17 @@ void GlProgram::sync(bool force_sync) {
   this->current_.should_link_ = false;
 }
 
-void GlProgram::attach_shader(std::weak_ptr<gl_shader::GlShader>&& shader) {
-  this->pending_.damaged_ = true;
-  this->pending_.shaders_.emplace_back(std::move(shader));
-}
 void GlProgram::request_link() {
   this->pending_.damaged_     = true;
   this->pending_.should_link_ = true;
+}
+void GlProgram::attach_shader(gl_shader::GlShader* shader) {
+  this->pending_.damaged_ = true;
+  this->pending_.shaders_.emplace_back(shader);
+}
+void GlProgram::remove_shader(gl_shader::GlShader* shader) {
+  this->pending_.shaders_.remove(shader);
+  this->current_.shaders_.remove(shader);
 }
 
 namespace {
@@ -92,9 +93,10 @@ void destroy(wl_client* /*client*/, wl_resource* resource) {
 void attach_shader(wl_client* /*client*/, wl_resource* resource,
     wl_resource* shader_resource) {
   auto* self   = static_cast<GlProgram*>(wl_resource_get_user_data(resource));
-  auto* shader = static_cast<std::shared_ptr<gl_shader::GlShader>*>(
+  auto* shader = static_cast<gl_shader::GlShader*>(
       wl_resource_get_user_data(shader_resource));
-  self->attach_shader(std::weak_ptr(*shader));
+  self->attach_shader(shader);
+  shader->set_owner(self);
 }
 void link(wl_client* /*client*/, wl_resource* resource) {
   auto* self = static_cast<GlProgram*>(wl_resource_get_user_data(resource));
