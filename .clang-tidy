@@ -12,6 +12,7 @@ Checks: >
   readability-*,
   -bugprone-easily-swappable-parameters,
   -cppcoreguidelines-avoid-goto,
+  -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-no-malloc,
   -cppcoreguidelines-owning-memory,
   -cppcoreguidelines-pro-type-vararg,
