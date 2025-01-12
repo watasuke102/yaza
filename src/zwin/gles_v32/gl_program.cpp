@@ -74,7 +74,7 @@ void GlProgram::sync(bool force_sync) {
 
 void GlProgram::attach_shader(std::weak_ptr<gl_shader::GlShader>&& shader) {
   this->pending_.damaged_ = true;
-  this->pending_.shaders_.push_back(std::move(shader));
+  this->pending_.shaders_.emplace_back(std::move(shader));
 }
 void GlProgram::request_link() {
   this->pending_.damaged_     = true;

@@ -62,6 +62,7 @@ void create(
     wl_client_post_no_memory(client);
     return;
   }
+  // virtually unique; GlProgram refers as a weak_ptr
   auto self = std::make_shared<GlShader>(
       resource, zwin::shm_buffer::get_buffer(buffer), type);
   wl_resource_set_implementation(resource, &kImpl, &self, destroy);
