@@ -24,6 +24,10 @@ GlProgram::GlProgram(wl_resource* resource) : resource_(resource) {
       });
   remote::g_remote->listen_session_disconnected(
       this->session_disconnected_listener_);
+  LOG_DEBUG("created: GlProgram");
+}
+GlProgram::~GlProgram() {
+  LOG_DEBUG("destructor: GlProgram");
 }
 
 void GlProgram::commit() {

@@ -38,6 +38,10 @@ GlVertexArray::GlVertexArray() {
       });
   remote::g_remote->listen_session_disconnected(
       this->session_disconnected_listener_);
+  LOG_DEBUG("created: GlVertexArray");
+}
+GlVertexArray::~GlVertexArray() {
+  LOG_DEBUG("destructor: GlVertexArray");
 }
 
 void GlVertexArray::commit() {

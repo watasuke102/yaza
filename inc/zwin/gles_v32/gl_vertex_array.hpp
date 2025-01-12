@@ -17,7 +17,7 @@ class GlVertexArray {
  public:
   DISABLE_MOVE_AND_COPY(GlVertexArray);
   GlVertexArray();
-  ~GlVertexArray() = default;
+  ~GlVertexArray();
 
   void commit();
   void sync(bool force_sync);

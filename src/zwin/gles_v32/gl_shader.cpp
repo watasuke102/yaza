@@ -25,8 +25,10 @@ GlShader::GlShader(
       });
   remote::g_remote->listen_session_disconnected(
       this->session_disconnected_listener_);
+  LOG_DEBUG("created: GlShader");
 }
 GlShader::~GlShader() {
+  LOG_DEBUG("destructor: GlShader");
   wl_resource_set_user_data(this->resource_, nullptr);
   wl_resource_set_destructor(this->resource_, nullptr);
 }

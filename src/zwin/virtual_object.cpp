@@ -38,8 +38,10 @@ VirtualObject::VirtualObject() {
 
   wl_list_init(&this->pending_.frame_callback_list_);
   wl_list_init(&this->current_.frame_callback_list_);
+  LOG_DEBUG("created: VirtualObject");
 }
 VirtualObject::~VirtualObject() {
+  LOG_DEBUG("destructor: VirtualObject");
   wl_list_remove(&this->pending_.frame_callback_list_);
   wl_list_remove(&this->current_.frame_callback_list_);
 }

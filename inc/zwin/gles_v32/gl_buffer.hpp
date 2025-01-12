@@ -15,7 +15,7 @@ class GlBuffer {
  public:
   DISABLE_MOVE_AND_COPY(GlBuffer);
   explicit GlBuffer(wl_event_loop* loop);
-  ~GlBuffer() = default;
+  ~GlBuffer();
 
   void commit();
   void sync(bool force_sync);

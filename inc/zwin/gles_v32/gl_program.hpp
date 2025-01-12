@@ -14,7 +14,7 @@ class GlProgram {
  public:
   DISABLE_MOVE_AND_COPY(GlProgram);
   explicit GlProgram(wl_resource* resource);
-  ~GlProgram() = default;
+  ~GlProgram();
 
   void commit();
   void sync(bool force_sync);

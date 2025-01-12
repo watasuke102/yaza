@@ -27,6 +27,10 @@ GlBuffer::GlBuffer(wl_event_loop* loop) : loop_(loop) {
       });
   remote::g_remote->listen_session_disconnected(
       this->session_disconnected_listener_);
+  LOG_DEBUG("created: GlBuffer");
+}
+GlBuffer::~GlBuffer() {
+  LOG_DEBUG("destructor: GlBuffer");
 }
 
 void GlBuffer::commit() {
