@@ -4,11 +4,13 @@
 #include <wayland-server-protocol.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
+#include <zen-remote/server/virtual-object.h>
 #include <zwin-protocol.h>
 
 #include <cstdint>
 #include <ctime>
 
+#include "common.hpp"
 #include "remote/remote.hpp"
 #include "remote/session.hpp"
 
@@ -44,6 +46,11 @@ VirtualObject::~VirtualObject() {
   LOG_DEBUG("destructor: VirtualObject");
   wl_list_remove(&this->pending_.frame_callback_list_);
   wl_list_remove(&this->current_.frame_callback_list_);
+  this->events_.committed_.emit(nullptr);
+  this->destroying_ = true;  // disable removing RenderingUnit from list
+  for (auto* unit : this->rendering_unit_list_) {
+    delete unit;
+  }
 }
 
 void VirtualObject::commit() {
@@ -51,7 +58,7 @@ void VirtualObject::commit() {
       &this->pending_.frame_callback_list_);
   wl_list_init(&this->pending_.frame_callback_list_);
   this->committed_ = true;
-  this->events_.begin_commit_.emit(nullptr);
+
   if (remote::g_remote->has_session()) {
     // sync only updated (damaged) data
     this->sync(false);
@@ -59,8 +66,27 @@ void VirtualObject::commit() {
 }
 
 void VirtualObject::sync(bool force_sync) {
+  if (!this->proxy_.has_value()) {
+    this->proxy_ = zen::remote::server::CreateVirtualObject(
+        remote::g_remote->channel_nonnull());
+  }
+  for (auto* unit : this->rendering_unit_list_) {
+    unit->sync(force_sync);
+  }
 }
 
+void VirtualObject::add_rendering_unit(
+    gles_v32::rendering_unit::RenderingUnit* unit) {
+  this->rendering_unit_list_.emplace_back(unit);
+}
+void VirtualObject::remove_rendering_unit(
+    gles_v32::rendering_unit::RenderingUnit* unit) {
+  // ignore removing request when destroying
+  // (when RenderingUnit is deleted by `this`)
+  if (!this->destroying_) {
+    this->rendering_unit_list_.remove(unit);
+  }
+}
 void VirtualObject::queue_frame_callback(wl_resource* callback_resource) const {
   wl_list_insert(this->pending_.frame_callback_list_.prev,
       wl_resource_get_link(callback_resource));
@@ -82,6 +108,10 @@ void VirtualObject::send_frame_done() {
     wl_callback_send_done(resource, now_msec);
     wl_resource_destroy(resource);
   }
+}
+
+void VirtualObject::listen_commited(util::Listener<std::nullptr_t*>& listener) {
+  this->events_.committed_.add_listener(listener);
 }
 
 namespace {

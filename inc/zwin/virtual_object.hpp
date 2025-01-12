@@ -13,6 +13,7 @@
 #include "common.hpp"
 #include "remote/session.hpp"
 #include "util/signal.hpp"
+#include "zwin/gles_v32/rendering_unit.hpp"
 
 namespace yaza::zwin::virtual_object {
 class VirtualObject {
@@ -28,20 +29,25 @@ class VirtualObject {
     return this->proxy_->get()->id();
   }
 
+  void add_rendering_unit(gles_v32::rendering_unit::RenderingUnit* unit);
+  void remove_rendering_unit(gles_v32::rendering_unit::RenderingUnit* unit);
   void queue_frame_callback(wl_resource* callback_resource) const;
   void send_frame_done();
 
+  void listen_commited(util::Listener<std::nullptr_t*>& listener);
+
  private:
   struct {
-    util::Signal<std::nullptr_t*> begin_commit_;
-    util::Signal<std::nullptr_t*> destroy_;
+    util::Signal<std::nullptr_t*> committed_;
   } events_;
 
   struct {
     wl_list frame_callback_list_;
   } pending_, current_;
-  bool committed_ = false;
+  bool committed_  = false;
+  bool destroying_ = false;
 
+  std::list<gles_v32::rendering_unit::RenderingUnit*> rendering_unit_list_;
   util::Listener<remote::Session*> session_established_listener_;
   util::Listener<std::nullptr_t*>  session_disconnected_listener_;
   util::Listener<std::nullptr_t*>  session_frame_listener_;
