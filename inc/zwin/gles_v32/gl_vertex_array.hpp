@@ -3,6 +3,7 @@
 #include <wayland-server-core.h>
 #include <zen-remote/server/gl-vertex-array.h>
 
+#include <cassert>
 #include <cstddef>
 #include <memory>
 #include <unordered_map>
@@ -19,8 +20,12 @@ class GlVertexArray {
   GlVertexArray();
   ~GlVertexArray();
 
-  void commit();
-  void sync(bool force_sync);
+  void     commit();
+  void     sync(bool force_sync);
+  uint64_t remote_id() {
+    assert(this->proxy_.has_value());
+    return this->proxy_->get()->id();
+  }
 
   VertexAttribute& get_pending_attribute(uint32_t index);
 

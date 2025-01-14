@@ -61,7 +61,7 @@ class WeakResource {
   bool has_resource() {
     return this->resource_ != nullptr;
   }
-  T get_user_data() {
+  T get_user_data() const {
     if (this->resource_) {
       return static_cast<T>(wl_resource_get_user_data(this->resource_));
     }

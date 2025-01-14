@@ -3,6 +3,7 @@
 #include <wayland-server-core.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
+#include <zen-remote/server/gl-base-technique.h>
 #include <zen-remote/server/gl-buffer.h>
 #include <zwin-gles-v32-protocol.h>
 
@@ -12,11 +13,67 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <variant>
 
 #include "remote/remote.hpp"
+#include "util/weak_resource.hpp"
+#include "zwin/gles_v32/gl_buffer.hpp"
 #include "zwin/gles_v32/rendering_unit.hpp"
 
 namespace yaza::zwin::gles_v32::gl_base_technique {
+namespace {
+/// replace nullable T* with std::optional<nonnull T*>
+template <typename T>
+constexpr std::optional<T> as_opt(const util::WeakResource<T>& res) {
+  auto p = res.get_user_data();
+  return p == nullptr ? std::make_optional(p) : std::nullopt;
+}
+}  // namespace
+
+struct DrawArraysArgs {  // NOLINT(cppcoreguidelines-special-member-functions)
+  DrawArraysArgs(uint32_t mode, int32_t first, uint32_t count)
+      : mode_(mode), first_(first), count_(count) {
+    LOG_DEBUG("constructor: DrawArraysArgs");
+  }
+  ~DrawArraysArgs() {
+    LOG_DEBUG(" destructor: DrawArraysArgs");
+  }
+
+  uint32_t mode_;
+  int32_t  first_;
+  uint32_t count_;
+};
+template <template <typename> class T>
+struct DrawElementsArgs {  // NOLINT(cppcoreguidelines-special-member-functions)
+  explicit DrawElementsArgs(
+      std::unique_ptr<DrawElementsArgs<util::WeakResource>>&& rhs);
+  DrawElementsArgs(
+      uint32_t mode, uint32_t count, uint32_t type, uint64_t offset)
+      : mode_(mode), count_(count), type_(type), offset_(offset) {
+    LOG_DEBUG("constructor: DrawElementsArgs");
+  }
+  DrawElementsArgs(uint32_t mode, uint32_t count, uint32_t type,
+      uint64_t offset, wl_resource* element_array_buffer)
+      : DrawElementsArgs(mode, count, type, offset) {
+    this->element_array_buffer_.link(element_array_buffer);
+  }
+  ~DrawElementsArgs() {
+    LOG_DEBUG(" destructor: DrawElementsArgs");
+  }
+
+  uint32_t                mode_;
+  uint32_t                count_;
+  uint32_t                type_;
+  uint64_t                offset_;
+  T<gl_buffer::GlBuffer*> element_array_buffer_;
+};
+template <>
+DrawElementsArgs<std::optional>::DrawElementsArgs(
+    std::unique_ptr<DrawElementsArgs<util::WeakResource>>&& rhs)
+    : DrawElementsArgs(rhs->mode_, rhs->count_, rhs->type_, rhs->offset_) {
+  this->element_array_buffer_ = as_opt(rhs->element_array_buffer_);
+}
+
 GlBaseTechnique::GlBaseTechnique(
     wl_resource* resource, rendering_unit::RenderingUnit* unit)
     : owner_(unit), resource_(resource) {
@@ -46,6 +103,64 @@ void GlBaseTechnique::commit() {
     this->owner_->set_technique(this);
     this->commited_ = true;
   }
+
+  this->current_.program_changed_ = this->pending_.program_changed_;
+  if (this->pending_.program_changed_) {
+    this->current_.program_         = as_opt(this->pending_.program_);
+    this->pending_.program_changed_ = false;
+    if (this->current_.program_.has_value()) {
+      this->current_.program_.value()->commit();
+    }
+  }
+
+  this->current_.vertex_array_changed_ = this->pending_.vertex_array_changed_;
+  if (this->pending_.vertex_array_changed_) {
+    this->current_.vertex_array_         = as_opt(this->pending_.vertex_array_);
+    this->pending_.vertex_array_changed_ = false;
+    if (this->current_.vertex_array_.has_value()) {
+      this->current_.vertex_array_.value()->commit();
+    }
+  }
+
+  this->current_.draw_api_args_changed_ = this->pending_.draw_api_args_changed_;
+  if (this->pending_.draw_api_args_changed_) {
+    auto& pending = this->pending_.draw_api_args_;  // alias
+    auto& current = this->current_.draw_api_args_;  // alias
+    if (std::holds_alternative<std::nullopt_t>(pending)) {
+      current.emplace<std::nullopt_t>(std::nullopt);
+    } else if (std::holds_alternative<std::unique_ptr<DrawArraysArgs>>(
+                   pending)) {
+      current = std::get<std::unique_ptr<DrawArraysArgs>>(std::move(pending));
+    } else {
+      auto args_ptr =
+          std::get<std::unique_ptr<DrawElementsArgs<util::WeakResource>>>(
+              std::move(pending));
+      args_ptr->element_array_buffer_.get_user_data()->commit();
+      current = std::make_unique<DrawElementsArgs<std::optional>>(
+          std::move(args_ptr));
+    }
+    pending                               = std::nullopt;
+    this->pending_.draw_api_args_changed_ = false;
+  }
+
+  // This loop seems like a bad algorithm with O(n*m) time complexity,
+  // but (basically) the number of Uniform Variables can be assumed
+  // to be small enough, right?
+  for (auto& pending : this->pending_.uniform_vars_) {
+    this->current_.uniform_vars_.remove_if(
+        [&pending](UniformVariable& current) {
+          if (!pending.name_.empty() && !current.name_.empty()) {
+            return pending.name_ == current.name_;
+          }
+          if (pending.name_.empty() || current.name_.empty()) {
+            return false;
+          }
+          return pending.location_ == current.location_;
+        });
+    pending.newly_comitted_ = true;
+  }
+  this->current_.uniform_vars_.splice(
+      this->current_.uniform_vars_.end(), this->pending_.uniform_vars_);
 }
 
 void GlBaseTechnique::sync(bool force_sync) {
@@ -53,6 +168,105 @@ void GlBaseTechnique::sync(bool force_sync) {
     this->proxy_ = zen::remote::server::CreateGlBaseTechnique(
         remote::g_remote->channel_nonnull(), this->owner_->remote_id());
   }
+  const auto kShouldSync = [force_sync](bool changed) {
+    return force_sync || changed;
+  };
+
+  if (this->current_.vertex_array_.has_value()) {
+    this->current_.vertex_array_.value()->sync(force_sync);
+    if (kShouldSync(this->current_.vertex_array_changed_)) {
+      this->proxy_->get()->BindVertexArray(
+          this->current_.vertex_array_.value()->remote_id());
+    }
+  }
+
+  if (this->current_.program_.has_value()) {
+    this->current_.program_.value()->sync(force_sync);
+    if (kShouldSync(this->current_.program_changed_)) {
+      this->proxy_->get()->BindProgram(
+          this->current_.program_.value()->remote_id());
+    }
+  }
+
+  for (auto& uniform_var : this->current_.uniform_vars_) {
+    if (!kShouldSync(uniform_var.newly_comitted_)) {
+      continue;
+    }
+    auto* value = uniform_var.value_.get();
+    if (uniform_var.col_ == 1) {
+      switch (uniform_var.type_) {
+        case ZWN_GL_BASE_TECHNIQUE_UNIFORM_VARIABLE_TYPE_INT:
+          this->proxy_->get()->GlUniformVector(uniform_var.location_,
+              std::move(uniform_var.name_), uniform_var.row_,
+              uniform_var.count_, static_cast<int32_t*>(value));
+          break;
+        case ZWN_GL_BASE_TECHNIQUE_UNIFORM_VARIABLE_TYPE_UINT:
+          this->proxy_->get()->GlUniformVector(uniform_var.location_,
+              std::move(uniform_var.name_), uniform_var.row_,
+              uniform_var.count_, static_cast<uint32_t*>(value));
+          break;
+        case ZWN_GL_BASE_TECHNIQUE_UNIFORM_VARIABLE_TYPE_FLOAT:
+          this->proxy_->get()->GlUniformVector(uniform_var.location_,
+              std::move(uniform_var.name_), uniform_var.row_,
+              uniform_var.count_, static_cast<float*>(value));
+          break;
+        default:
+          // unreachable!()
+          break;
+      }
+    } else {
+      this->proxy_->get()->GlUniformMatrix(uniform_var.location_,
+          std::move(uniform_var.name_), uniform_var.col_, uniform_var.row_,
+          uniform_var.count_, uniform_var.transpose_,
+          static_cast<float*>(value));
+    }
+  }
+
+  if (auto* args = std::get_if<std::unique_ptr<DrawArraysArgs>>(
+          &this->current_.draw_api_args_)) {
+    if (kShouldSync(this->current_.draw_api_args_changed_)) {
+      this->proxy_->get()->GlDrawArrays(
+          args->get()->mode_, args->get()->first_, args->get()->count_);
+    }
+  } else if (auto* args =
+                 std::get_if<std::unique_ptr<DrawElementsArgs<std::optional>>>(
+                     &this->current_.draw_api_args_)) {
+    if (!args->get()->element_array_buffer_.has_value()) {
+      return;
+    }
+    args->get()->element_array_buffer_.value()->sync(force_sync);
+    if (kShouldSync(this->current_.draw_api_args_changed_)) {
+      this->proxy_->get()->GlDrawElements(args->get()->mode_,
+          args->get()->count_, args->get()->type_, args->get()->offset_,
+          args->get()->element_array_buffer_.value()->remote_id());
+    }
+  }
+}
+
+void GlBaseTechnique::request_bind_program(wl_resource* resource) {
+  this->pending_.program_.link(resource);
+  this->pending_.program_changed_ = true;
+}
+void GlBaseTechnique::request_bind_vertex_array(wl_resource* resource) {
+  this->pending_.vertex_array_.link(resource);
+  this->pending_.vertex_array_changed_ = true;
+}
+void GlBaseTechnique::new_uniform_var(UniformVariable&& var) {
+  this->pending_.uniform_vars_.emplace_back(std::move(var));
+}
+void GlBaseTechnique::request_draw_arrays(
+    uint32_t mode, int32_t first, uint32_t count) {
+  this->pending_.draw_api_args_changed_ = true;
+  this->pending_.draw_api_args_.emplace<std::unique_ptr<DrawArraysArgs>>(
+      std::make_unique<DrawArraysArgs>(mode, first, count));
+}
+void GlBaseTechnique::request_draw_elements(uint32_t mode, uint32_t count,
+    uint32_t type, uint64_t offset, wl_resource* element_array_buffer) {
+  this->pending_.draw_api_args_changed_ = true;
+  this->pending_.draw_api_args_
+      .emplace<std::unique_ptr<DrawElementsArgs<util::WeakResource>>>(
+          std::make_unique<DrawElementsArgs<util::WeakResource>>(
+              mode, count, type, offset, element_array_buffer));
 }
 
 namespace {
@@ -60,29 +274,111 @@ void destroy(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
 }
 void bind_program(
-    wl_client* client, wl_resource* resource, wl_resource* program) {
+    wl_client* /*client*/, wl_resource* resource, wl_resource* program) {
+  auto* self =
+      static_cast<GlBaseTechnique*>(wl_resource_get_user_data(resource));
+  if (self) {
+    self->request_bind_program(program);
+  }
 }
 void bind_vertex_array(
-    wl_client* client, wl_resource* resource, wl_resource* vertex_array) {
+    wl_client* /*client*/, wl_resource* resource, wl_resource* vertex_array) {
+  auto* self =
+      static_cast<GlBaseTechnique*>(wl_resource_get_user_data(resource));
+  if (self) {
+    self->request_bind_vertex_array(vertex_array);
+  }
 }
-void bind_texture(wl_client* client, wl_resource* resource, uint32_t binding,
-    const char* name, wl_resource* texture, uint32_t target,
-    wl_resource* sampler) {
+void bind_texture(wl_client* client, wl_resource* /*resource*/,
+    uint32_t /*binding*/, const char* /*name*/, wl_resource* /*texture*/,
+    uint32_t /*target*/, wl_resource* /*sampler*/) {
+  wl_client_post_implementation_error(client, "not yet implemented");
 }
-void uniform_vector(wl_client* client, wl_resource* resource, uint32_t location,
-    const char* name, uint32_t type, uint32_t size, uint32_t count,
-    wl_array* value) {
+void uniform_vector(wl_client* /*client*/, wl_resource* resource,
+    uint32_t location, const char* name, uint32_t type, uint32_t size,
+    uint32_t count, wl_array* value) {
+  auto* self =
+      static_cast<GlBaseTechnique*>(wl_resource_get_user_data(resource));
+  if (!self) {
+    return;
+  }
+
+  if (size <= 0 || size > 4) {
+    wl_resource_post_error(resource,
+        ZWN_GL_BASE_TECHNIQUE_ERROR_UNIFORM_VARIABLE,
+        "expect: 1 <= size <= 4, actual size: %d", size);
+    return;
+  }
+  if (value->size < (4UL * size * count)) {
+    wl_resource_post_error(resource,
+        ZWN_GL_BASE_TECHNIQUE_ERROR_UNIFORM_VARIABLE,
+        "expect: value.size >= %d, actual value.size: %lu", 4 * size * count,
+        value->size);
+    return;
+  }
+
+  auto type_enum =
+      static_cast<zwn_gl_base_technique_uniform_variable_type>(type);
+  self->new_uniform_var(UniformVariable(
+      type_enum, location, name, 1, size, count, false, value->data));
 }
-void uniform_matrix(wl_client* client, wl_resource* resource, uint32_t location,
-    const char* name, uint32_t col, uint32_t row, uint32_t count,
-    uint32_t transpose, wl_array* value) {
+void uniform_matrix(wl_client* /*client*/, wl_resource* resource,
+    uint32_t location, const char* name, uint32_t col, uint32_t row,
+    uint32_t count, uint32_t transpose, wl_array* value) {
+  auto* self =
+      static_cast<GlBaseTechnique*>(wl_resource_get_user_data(resource));
+  if (!self) {
+    return;
+  }
+
+  if (col <= 0 || col > 4) {
+    wl_resource_post_error(resource,
+        ZWN_GL_BASE_TECHNIQUE_ERROR_UNIFORM_VARIABLE,
+        "expect: 1 <= col <= 4, actual col: %d", col);
+    return;
+  }
+  if (row <= 0 || row > 4) {
+    wl_resource_post_error(resource,
+        ZWN_GL_BASE_TECHNIQUE_ERROR_UNIFORM_VARIABLE,
+        "expect: 1 <= row <= 4, actual row: %d", row);
+    return;
+  }
+  if (value->size < (4UL * col * row * count)) {
+    wl_resource_post_error(resource,
+        ZWN_GL_BASE_TECHNIQUE_ERROR_UNIFORM_VARIABLE,
+        "expect: value.size >= %d, actual value.size: %lu",
+        4 * col * row * count, value->size);
+    return;
+  }
+  self->new_uniform_var(
+      UniformVariable(ZWN_GL_BASE_TECHNIQUE_UNIFORM_VARIABLE_TYPE_FLOAT,
+          location, name, col, row, count, transpose, value->data));
 }
-void draw_arrays(wl_client* client, wl_resource* resource, uint32_t mode,
+void draw_arrays(wl_client* /*client*/, wl_resource* resource, uint32_t mode,
     int32_t first, uint32_t count) {
+  auto* self =
+      static_cast<GlBaseTechnique*>(wl_resource_get_user_data(resource));
+  if (self) {
+    self->request_draw_arrays(mode, first, count);
+  }
 }
-void draw_elements(wl_client* client, wl_resource* resource, uint32_t mode,
-    uint32_t count, uint32_t type, wl_array* offset,
+void draw_elements(wl_client* /*client*/, wl_resource* resource, uint32_t mode,
+    uint32_t count, uint32_t type, wl_array* offset_array,
     wl_resource* element_array_buffer) {
+  auto* self =
+      static_cast<GlBaseTechnique*>(wl_resource_get_user_data(resource));
+  if (!self) {
+    return;
+  }
+  if (offset_array->size != sizeof(uint64_t)) {
+    wl_resource_post_error(resource, ZWN_COMPOSITOR_ERROR_WL_ARRAY_SIZE,
+        "offset size (%ld) does not equal uint64_t size (%ld)",
+        offset_array->size, sizeof(uint64_t));
+    return;
+  }
+  uint64_t offset = 0;
+  std::memcpy(&offset, offset_array->data, offset_array->size);
+  self->request_draw_elements(mode, count, type, offset, element_array_buffer);
 }
 const struct zwn_gl_base_technique_interface kImpl = {
     .destroy           = destroy,
@@ -93,7 +389,7 @@ const struct zwn_gl_base_technique_interface kImpl = {
     .uniform_matrix    = uniform_matrix,
     .draw_arrays       = draw_arrays,
     .draw_elements     = draw_elements,
-};  // namespace
+};
 
 void destroy(wl_resource* resource) {
   auto* self =

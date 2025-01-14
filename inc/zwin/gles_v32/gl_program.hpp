@@ -16,8 +16,12 @@ class GlProgram {
   explicit GlProgram(wl_resource* resource);
   ~GlProgram();
 
-  void commit();
-  void sync(bool force_sync);
+  void     commit();
+  void     sync(bool force_sync);
+  uint64_t remote_id() {
+    assert(this->proxy_.has_value());
+    return this->proxy_->get()->id();
+  }
 
   void request_link();
   void attach_shader(gl_shader::GlShader* shader);

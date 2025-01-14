@@ -86,6 +86,7 @@ void GlVertexArray::sync(bool force_sync) {
     }
   }
 }
+
 VertexAttribute& GlVertexArray::get_pending_attribute(uint32_t index) {
   return this->pending_.attribute_map_[index];
 }
