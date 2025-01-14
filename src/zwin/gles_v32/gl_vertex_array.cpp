@@ -8,20 +8,22 @@
 
 #include <cstdint>
 #include <cstring>
+#include <memory>
 
+#include "common.hpp"
 #include "remote/remote.hpp"
-#include "util/weak_resource.hpp"
+#include "util/weakable_unique_ptr.hpp"
 #include "zwin/gles_v32/gl_buffer.hpp"
 
 namespace yaza::zwin::gles_v32::gl_vertex_array {
 struct VertexAttribute {
-  int32_t                                  size_;
-  uint32_t                                 type_;
-  int32_t                                  stride_;
-  uint64_t                                 offset_;
-  bool                                     normalized_;
-  bool                                     gl_buffer_changed_;
-  util::WeakResource<gl_buffer::GlBuffer*> gl_buffer_;
+  int32_t                            size_;
+  uint32_t                           type_;
+  int32_t                            stride_;
+  uint64_t                           offset_;
+  bool                               normalized_;
+  bool                               gl_buffer_changed_;
+  util::WeakPtr<gl_buffer::GlBuffer> gl_buffer_;
 
   bool enability_changed_;
   bool enabled_;
@@ -52,8 +54,7 @@ void GlVertexArray::commit() {
     attrib.enability_changed_ = false;
     attrib.gl_buffer_changed_ = false;
 
-    auto* buffer = attrib.gl_buffer_.get_user_data();
-    if (buffer) {
+    if (auto* buffer = attrib.gl_buffer_.lock()) {
       buffer->commit();
     }
   }
@@ -65,8 +66,7 @@ void GlVertexArray::sync(bool force_sync) {
         remote::g_remote->channel_nonnull());
   }
   for (auto& [index, attrib] : this->current_.attribute_map_) {
-    auto* buffer =
-        static_cast<gl_buffer::GlBuffer*>(attrib.gl_buffer_.get_user_data());
+    auto* buffer = attrib.gl_buffer_.lock();
     if (!buffer) {
       continue;
     }
@@ -97,13 +97,15 @@ void destroy(wl_client* /*client*/, wl_resource* resource) {
 }
 void enable_vertex_attrib_array(
     wl_client* /*client*/, wl_resource* resource, uint32_t index) {
-  auto* self = static_cast<GlVertexArray*>(wl_resource_get_user_data(resource));
-  self->get_pending_attribute(index).set_enability(true);
+  auto* self = static_cast<util::UniPtr<GlVertexArray>*>(
+      wl_resource_get_user_data(resource));
+  self->get()->get_pending_attribute(index).set_enability(true);
 }
 void disable_vertex_attrib_array(
     wl_client* /*client*/, wl_resource* resource, uint32_t index) {
-  auto* self = static_cast<GlVertexArray*>(wl_resource_get_user_data(resource));
-  self->get_pending_attribute(index).set_enability(false);
+  auto* self = static_cast<util::UniPtr<GlVertexArray>*>(
+      wl_resource_get_user_data(resource));
+  self->get()->get_pending_attribute(index).set_enability(false);
 }
 void vertex_attrib_pointer(wl_client* /*client*/, wl_resource* resource,
     uint32_t index, int32_t size, uint32_t type, uint32_t normalized,
@@ -114,15 +116,19 @@ void vertex_attrib_pointer(wl_client* /*client*/, wl_resource* resource,
         sizeof(uint64_t));
     return;
   }
-  auto* self = static_cast<GlVertexArray*>(wl_resource_get_user_data(resource));
-  auto& attrib = self->get_pending_attribute(index);
+  auto* self = static_cast<util::UniPtr<GlVertexArray>*>(
+      wl_resource_get_user_data(resource));
+  auto* buffer = static_cast<util::UniPtr<gl_buffer::GlBuffer>*>(
+      wl_resource_get_user_data(gl_buffer));
+
+  auto& attrib = self->get()->get_pending_attribute(index);
   std::memcpy(&attrib.offset_, offset->data, offset->size);
   attrib.size_              = size;
   attrib.type_              = type;
   attrib.normalized_        = normalized;
   attrib.stride_            = stride;
   attrib.gl_buffer_changed_ = true;
-  attrib.gl_buffer_.link(gl_buffer);
+  attrib.gl_buffer_         = buffer->weak();
 }
 const struct zwn_gl_vertex_array_interface kImpl = {
     .destroy                     = destroy,
@@ -132,7 +138,8 @@ const struct zwn_gl_vertex_array_interface kImpl = {
 };
 
 void destroy(wl_resource* resource) {
-  auto* self = static_cast<GlVertexArray*>(wl_resource_get_user_data(resource));
+  auto* self = static_cast<util::UniPtr<GlVertexArray>*>(
+      wl_resource_get_user_data(resource));
   delete self;
 }
 }  // namespace
@@ -143,7 +150,7 @@ void create(wl_client* client, uint32_t id) {
     wl_client_post_no_memory(client);
     return;
   }
-  auto* self = new GlVertexArray();
+  auto* self = new util::UniPtr<GlVertexArray>();
   wl_resource_set_implementation(resource, &kImpl, self, destroy);
 }
 }  // namespace yaza::zwin::gles_v32::gl_vertex_array

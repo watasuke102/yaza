@@ -13,9 +13,11 @@
 #include <memory>
 #include <optional>
 
+#include "common.hpp"
 #include "remote/loop.hpp"
 #include "remote/remote.hpp"
 #include "util/weak_resource.hpp"
+#include "util/weakable_unique_ptr.hpp"
 #include "zen-remote/server/buffer.h"
 #include "zwin/shm/shm_buffer.hpp"
 
@@ -91,8 +93,9 @@ void destroy(wl_client* /*client*/, wl_resource* resource) {
 }
 void data(wl_client* /*client*/, wl_resource* resource, uint32_t target,
     wl_resource* data, uint32_t usage) {
-  auto* self = static_cast<GlBuffer*>(wl_resource_get_user_data(resource));
-  self->update_pending_data(target, usage, data);
+  auto* self =
+      static_cast<util::UniPtr<GlBuffer>*>(wl_resource_get_user_data(resource));
+  (*self)->update_pending_data(target, usage, data);
 }
 const struct zwn_gl_buffer_interface kImpl = {
     .destroy = destroy,
@@ -100,7 +103,8 @@ const struct zwn_gl_buffer_interface kImpl = {
 };
 
 void destroy(wl_resource* resource) {
-  auto* self = static_cast<GlBuffer*>(wl_resource_get_user_data(resource));
+  auto* self =
+      static_cast<util::UniPtr<GlBuffer>*>(wl_resource_get_user_data(resource));
   delete self;
 }
 }  // namespace
@@ -111,7 +115,7 @@ void create(wl_client* client, uint32_t id, wl_event_loop* loop) {
     wl_client_post_no_memory(client);
     return;
   }
-  auto* self = new GlBuffer(loop);
+  auto* self = new util::UniPtr<GlBuffer>(loop);
   wl_resource_set_implementation(resource, &kImpl, self, destroy);
 }
 }  // namespace yaza::zwin::gles_v32::gl_buffer

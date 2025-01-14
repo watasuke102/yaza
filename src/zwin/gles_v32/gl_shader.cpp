@@ -32,8 +32,8 @@ GlShader::~GlShader() {
   LOG_DEBUG("destructor: GlShader");
   wl_resource_set_user_data(this->resource_, nullptr);
   wl_resource_set_destructor(this->resource_, nullptr);
-  if (this->owner_.has_value()) {
-    this->owner_.value()->remove_shader(this);
+  if (auto* owner = this->owner_.lock()) {
+    owner->remove_shader(this);
   }
 }
 void GlShader::sync() {

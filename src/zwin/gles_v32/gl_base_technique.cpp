@@ -16,64 +16,13 @@
 #include <variant>
 
 #include "remote/remote.hpp"
-#include "util/weak_resource.hpp"
+#include "util/weakable_unique_ptr.hpp"
 #include "zwin/gles_v32/gl_buffer.hpp"
+#include "zwin/gles_v32/gl_program.hpp"
+#include "zwin/gles_v32/gl_vertex_array.hpp"
 #include "zwin/gles_v32/rendering_unit.hpp"
 
 namespace yaza::zwin::gles_v32::gl_base_technique {
-namespace {
-/// replace nullable T* with std::optional<nonnull T*>
-template <typename T>
-constexpr std::optional<T> as_opt(const util::WeakResource<T>& res) {
-  auto p = res.get_user_data();
-  return p == nullptr ? std::make_optional(p) : std::nullopt;
-}
-}  // namespace
-
-struct DrawArraysArgs {  // NOLINT(cppcoreguidelines-special-member-functions)
-  DrawArraysArgs(uint32_t mode, int32_t first, uint32_t count)
-      : mode_(mode), first_(first), count_(count) {
-    LOG_DEBUG("constructor: DrawArraysArgs");
-  }
-  ~DrawArraysArgs() {
-    LOG_DEBUG(" destructor: DrawArraysArgs");
-  }
-
-  uint32_t mode_;
-  int32_t  first_;
-  uint32_t count_;
-};
-template <template <typename> class T>
-struct DrawElementsArgs {  // NOLINT(cppcoreguidelines-special-member-functions)
-  explicit DrawElementsArgs(
-      std::unique_ptr<DrawElementsArgs<util::WeakResource>>&& rhs);
-  DrawElementsArgs(
-      uint32_t mode, uint32_t count, uint32_t type, uint64_t offset)
-      : mode_(mode), count_(count), type_(type), offset_(offset) {
-    LOG_DEBUG("constructor: DrawElementsArgs");
-  }
-  DrawElementsArgs(uint32_t mode, uint32_t count, uint32_t type,
-      uint64_t offset, wl_resource* element_array_buffer)
-      : DrawElementsArgs(mode, count, type, offset) {
-    this->element_array_buffer_.link(element_array_buffer);
-  }
-  ~DrawElementsArgs() {
-    LOG_DEBUG(" destructor: DrawElementsArgs");
-  }
-
-  uint32_t                mode_;
-  uint32_t                count_;
-  uint32_t                type_;
-  uint64_t                offset_;
-  T<gl_buffer::GlBuffer*> element_array_buffer_;
-};
-template <>
-DrawElementsArgs<std::optional>::DrawElementsArgs(
-    std::unique_ptr<DrawElementsArgs<util::WeakResource>>&& rhs)
-    : DrawElementsArgs(rhs->mode_, rhs->count_, rhs->type_, rhs->offset_) {
-  this->element_array_buffer_ = as_opt(rhs->element_array_buffer_);
-}
-
 GlBaseTechnique::GlBaseTechnique(
     wl_resource* resource, rendering_unit::RenderingUnit* unit)
     : owner_(unit), resource_(resource) {
@@ -106,19 +55,19 @@ void GlBaseTechnique::commit() {
 
   this->current_.program_changed_ = this->pending_.program_changed_;
   if (this->pending_.program_changed_) {
-    this->current_.program_         = as_opt(this->pending_.program_);
+    this->current_.program_         = this->pending_.program_;
     this->pending_.program_changed_ = false;
-    if (this->current_.program_.has_value()) {
-      this->current_.program_.value()->commit();
+    if (auto* program = this->current_.program_.lock()) {
+      program->commit();
     }
   }
 
   this->current_.vertex_array_changed_ = this->pending_.vertex_array_changed_;
   if (this->pending_.vertex_array_changed_) {
-    this->current_.vertex_array_         = as_opt(this->pending_.vertex_array_);
+    this->current_.vertex_array_         = this->pending_.vertex_array_;
     this->pending_.vertex_array_changed_ = false;
-    if (this->current_.vertex_array_.has_value()) {
-      this->current_.vertex_array_.value()->commit();
+    if (auto* vertex_array = this->current_.vertex_array_.lock()) {
+      vertex_array->commit();
     }
   }
 
@@ -133,11 +82,11 @@ void GlBaseTechnique::commit() {
       current = std::get<std::unique_ptr<DrawArraysArgs>>(std::move(pending));
     } else {
       auto args_ptr =
-          std::get<std::unique_ptr<DrawElementsArgs<util::WeakResource>>>(
-              std::move(pending));
-      args_ptr->element_array_buffer_.get_user_data()->commit();
-      current = std::make_unique<DrawElementsArgs<std::optional>>(
-          std::move(args_ptr));
+          std::get<std::unique_ptr<DrawElementsArgs>>(std::move(pending));
+      if (auto* buf = args_ptr->element_array_buffer_.lock()) {
+        buf->commit();
+      }
+      current = std::move(args_ptr);
     }
     pending                               = std::nullopt;
     this->pending_.draw_api_args_changed_ = false;
@@ -172,19 +121,17 @@ void GlBaseTechnique::sync(bool force_sync) {
     return force_sync || changed;
   };
 
-  if (this->current_.vertex_array_.has_value()) {
-    this->current_.vertex_array_.value()->sync(force_sync);
+  if (auto* vertex_array = this->current_.vertex_array_.lock()) {
+    vertex_array->sync(force_sync);
     if (kShouldSync(this->current_.vertex_array_changed_)) {
-      this->proxy_->get()->BindVertexArray(
-          this->current_.vertex_array_.value()->remote_id());
+      this->proxy_->get()->BindVertexArray(vertex_array->remote_id());
     }
   }
 
-  if (this->current_.program_.has_value()) {
-    this->current_.program_.value()->sync(force_sync);
+  if (auto* program = this->current_.program_.lock()) {
+    program->sync(force_sync);
     if (kShouldSync(this->current_.program_changed_)) {
-      this->proxy_->get()->BindProgram(
-          this->current_.program_.value()->remote_id());
+      this->proxy_->get()->BindProgram(program->remote_id());
     }
   }
 
@@ -228,27 +175,31 @@ void GlBaseTechnique::sync(bool force_sync) {
       this->proxy_->get()->GlDrawArrays(
           args->get()->mode_, args->get()->first_, args->get()->count_);
     }
-  } else if (auto* args =
-                 std::get_if<std::unique_ptr<DrawElementsArgs<std::optional>>>(
-                     &this->current_.draw_api_args_)) {
-    if (!args->get()->element_array_buffer_.has_value()) {
+  } else if (auto* args = std::get_if<std::unique_ptr<DrawElementsArgs>>(
+                 &this->current_.draw_api_args_)) {
+    auto* element_array_buffer = args->get()->element_array_buffer_.lock();
+    if (!element_array_buffer) {
       return;
     }
-    args->get()->element_array_buffer_.value()->sync(force_sync);
+    element_array_buffer->sync(force_sync);
     if (kShouldSync(this->current_.draw_api_args_changed_)) {
       this->proxy_->get()->GlDrawElements(args->get()->mode_,
           args->get()->count_, args->get()->type_, args->get()->offset_,
-          args->get()->element_array_buffer_.value()->remote_id());
+          element_array_buffer->remote_id());
     }
   }
 }
 
 void GlBaseTechnique::request_bind_program(wl_resource* resource) {
-  this->pending_.program_.link(resource);
+  auto* tmp = static_cast<util::UniPtr<gl_program::GlProgram>*>(
+      wl_resource_get_user_data(resource));
+  this->pending_.program_         = (*tmp).weak();
   this->pending_.program_changed_ = true;
 }
 void GlBaseTechnique::request_bind_vertex_array(wl_resource* resource) {
-  this->pending_.vertex_array_.link(resource);
+  auto* tmp = static_cast<util::UniPtr<gl_vertex_array::GlVertexArray>*>(
+      wl_resource_get_user_data(resource));
+  this->pending_.vertex_array_         = (*tmp).weak();
   this->pending_.vertex_array_changed_ = true;
 }
 void GlBaseTechnique::new_uniform_var(UniformVariable&& var) {
@@ -262,11 +213,12 @@ void GlBaseTechnique::request_draw_arrays(
 }
 void GlBaseTechnique::request_draw_elements(uint32_t mode, uint32_t count,
     uint32_t type, uint64_t offset, wl_resource* element_array_buffer) {
+  auto* tmp = static_cast<util::UniPtr<gl_buffer::GlBuffer>*>(
+      wl_resource_get_user_data(element_array_buffer));
   this->pending_.draw_api_args_changed_ = true;
-  this->pending_.draw_api_args_
-      .emplace<std::unique_ptr<DrawElementsArgs<util::WeakResource>>>(
-          std::make_unique<DrawElementsArgs<util::WeakResource>>(
-              mode, count, type, offset, element_array_buffer));
+  this->pending_.draw_api_args_.emplace<std::unique_ptr<DrawElementsArgs>>(
+      std::make_unique<DrawElementsArgs>(
+          mode, count, type, offset, (*tmp).weak()));
 }
 
 namespace {

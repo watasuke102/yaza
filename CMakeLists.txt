@@ -32,6 +32,7 @@ include(FetchContent)
 FetchContent_Declare(zen-remote
   GIT_REPOSITORY https://github.com/watasuke102/zen-remote GIT_TAG main GIT_SHALLOW true GIT_SUBMODULES_RECURSE true
   SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/3rdparty/zen-remote
+  UPDATE_COMMAND ""
   PATCH_COMMAND sed -i "s|SHARED|STATIC|" <SOURCE_DIR>/src/server/CMakeLists.txt
 )
 FetchContent_MakeAvailable(zen-remote)
@@ -137,9 +138,13 @@ generate_proto_header("zwin-shell-protocol" "zwin/zwin-shell.xml")
 generate_proto_header("zwin-gles-v32-protocol" "zwin/zwin-gles-v32.xml")
 
 add_executable(${PROJECT_NAME} ${sources} ${headers})
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Wno-gnu-zero-variadic-macro-arguments -ffile-prefix-map=${CMAKE_SOURCE_DIR}/src/=)
 target_include_directories(${PROJECT_NAME} PRIVATE ${local_inc_dirs})
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${lib_inc_dirs})
 target_link_libraries(${PROJECT_NAME} ${link_libs})
+target_compile_options(${PROJECT_NAME} PRIVATE 
+  -Wall -Wextra -Wpedantic -Wno-gnu-zero-variadic-macro-arguments
+  -ffile-prefix-map=${CMAKE_SOURCE_DIR}/src/=
+  -ffile-prefix-map=${CMAKE_SOURCE_DIR}/inc/=
+)
 
 add_dependencies(${PROJECT_NAME} wayland)

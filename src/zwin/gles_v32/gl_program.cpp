@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "remote/remote.hpp"
+#include "util/weakable_unique_ptr.hpp"
 #include "zwin/gles_v32/gl_shader.hpp"
 
 namespace yaza::zwin::gles_v32::gl_program {
@@ -29,7 +30,7 @@ GlProgram::~GlProgram() {
   this->current_.shaders_.splice(
       this->current_.shaders_.end(), this->pending_.shaders_);
   for (auto* shader : this->current_.shaders_) {
-    shader->set_owner(std::nullopt);
+    shader->set_owner(util::WeakPtr<gl_program::GlProgram>());
     delete shader;
   }
 }
@@ -92,15 +93,17 @@ void destroy(wl_client* /*client*/, wl_resource* resource) {
 }
 void attach_shader(wl_client* /*client*/, wl_resource* resource,
     wl_resource* shader_resource) {
-  auto* self   = static_cast<GlProgram*>(wl_resource_get_user_data(resource));
+  auto* self = static_cast<util::UniPtr<GlProgram>*>(
+      wl_resource_get_user_data(resource));
   auto* shader = static_cast<gl_shader::GlShader*>(
       wl_resource_get_user_data(shader_resource));
-  self->attach_shader(shader);
-  shader->set_owner(self);
+  (*self)->attach_shader(shader);
+  shader->set_owner((*self).weak());
 }
 void link(wl_client* /*client*/, wl_resource* resource) {
-  auto* self = static_cast<GlProgram*>(wl_resource_get_user_data(resource));
-  self->request_link();
+  auto* self = static_cast<util::UniPtr<GlProgram>*>(
+      wl_resource_get_user_data(resource));
+  (*self)->request_link();
 }
 const struct zwn_gl_program_interface kImpl = {
     .destroy       = destroy,
@@ -109,7 +112,8 @@ const struct zwn_gl_program_interface kImpl = {
 };  // namespace
 
 void destroy(wl_resource* resource) {
-  auto* self = static_cast<GlProgram*>(wl_resource_get_user_data(resource));
+  auto* self = static_cast<util::UniPtr<GlProgram>*>(
+      wl_resource_get_user_data(resource));
   delete self;
 }
 }  // namespace
@@ -120,7 +124,7 @@ void create(wl_client* client, uint32_t id) {
     wl_client_post_no_memory(client);
     return;
   }
-  auto* self = new GlProgram(resource);
+  auto* self = new util::UniPtr<GlProgram>(resource);
   wl_resource_set_implementation(resource, &kImpl, self, destroy);
 }
 }  // namespace yaza::zwin::gles_v32::gl_program

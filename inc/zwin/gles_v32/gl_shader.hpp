@@ -11,6 +11,7 @@
 
 #include "common.hpp"
 #include "util/signal.hpp"
+#include "util/weakable_unique_ptr.hpp"
 #include "zwin/shm/shm_buffer.hpp"
 
 // Do not include `gl_program.hpp` to prevent circular reference
@@ -31,17 +32,17 @@ class GlShader {
     assert(this->proxy_.has_value());
     return this->proxy_->get()->id();
   }
-  void set_owner(std::optional<gl_program::GlProgram*> owner) {
-    this->owner_ = owner;
+  void set_owner(util::WeakPtr<gl_program::GlProgram>&& owner) {
+    this->owner_ = std::move(owner);
   }
 
  private:
   uint32_t                     type_;
   zwin::shm_buffer::ShmBuffer* buffer_;
 
-  std::optional<gl_program::GlProgram*> owner_;
-  wl_resource*                          resource_;
-  util::Listener<std::nullptr_t*>       session_disconnected_listener_;
+  util::WeakPtr<gl_program::GlProgram> owner_;
+  wl_resource*                         resource_;
+  util::Listener<std::nullptr_t*>      session_disconnected_listener_;
   std::optional<std::unique_ptr<zen::remote::server::IGlShader>> proxy_ =
       std::nullopt;
 };

@@ -14,7 +14,8 @@
 
 #include "common.hpp"
 #include "util/signal.hpp"
-#include "util/weak_resource.hpp"
+#include "util/weakable_unique_ptr.hpp"
+#include "zwin/gles_v32/gl_buffer.hpp"
 #include "zwin/gles_v32/gl_program.hpp"
 #include "zwin/gles_v32/gl_vertex_array.hpp"
 
@@ -49,13 +50,45 @@ struct UniformVariable {
   bool                                        newly_comitted_ = false;
 };
 
+struct DrawArraysArgs {  // NOLINT(cppcoreguidelines-special-member-functions)
+  DrawArraysArgs(uint32_t mode, int32_t first, uint32_t count)
+      : mode_(mode), first_(first), count_(count) {
+    LOG_DEBUG("constructor: DrawArraysArgs");
+  }
+  ~DrawArraysArgs() {
+    LOG_DEBUG(" destructor: DrawArraysArgs");
+  }
+
+  uint32_t mode_;
+  int32_t  first_;
+  uint32_t count_;
+};
+struct DrawElementsArgs {  // NOLINT(cppcoreguidelines-special-member-functions)
+  DrawElementsArgs(
+      uint32_t mode, uint32_t count, uint32_t type, uint64_t offset)
+      : mode_(mode), count_(count), type_(type), offset_(offset) {
+    LOG_DEBUG("constructor: DrawElementsArgs");
+  }
+  DrawElementsArgs(uint32_t mode, uint32_t count, uint32_t type,
+      uint64_t                             offset,
+      util::WeakPtr<gl_buffer::GlBuffer>&& element_array_buffer)
+      : DrawElementsArgs(mode, count, type, offset) {
+    this->element_array_buffer_ = std::move(element_array_buffer);
+  }
+  ~DrawElementsArgs() {
+    LOG_DEBUG(" destructor: DrawElementsArgs");
+  }
+
+  uint32_t                           mode_;
+  uint32_t                           count_;
+  uint32_t                           type_;
+  uint64_t                           offset_;
+  util::WeakPtr<gl_buffer::GlBuffer> element_array_buffer_;
+};
 // clang-format off
-struct DrawArraysArgs;
-template <template <typename> class T> struct DrawElementsArgs;
-template <template <typename> class T>
 using DrawApiArgs = std::variant<
   std::unique_ptr<DrawArraysArgs>,
-  std::unique_ptr<DrawElementsArgs<T>>,
+  std::unique_ptr<DrawElementsArgs>,
   std::nullopt_t
 >;  // clang-format on
 
@@ -81,22 +114,19 @@ class GlBaseTechnique {
       uint64_t offset, wl_resource* element_array_buffer);
 
  private:
-  template <template <typename> class T>
-  struct Buffer {
-    bool                      program_changed_ = false;
-    T<gl_program::GlProgram*> program_;
+  struct {
+    bool                                 program_changed_ = false;
+    util::WeakPtr<gl_program::GlProgram> program_;
 
-    bool                               vertex_array_changed_ = false;
-    T<gl_vertex_array::GlVertexArray*> vertex_array_;
+    bool                                          vertex_array_changed_ = false;
+    util::WeakPtr<gl_vertex_array::GlVertexArray> vertex_array_;
 
-    bool           draw_api_args_changed_ = false;
-    DrawApiArgs<T> draw_api_args_         = std::nullopt;
+    bool        draw_api_args_changed_ = false;
+    DrawApiArgs draw_api_args_         = std::nullopt;
 
     std::list<UniformVariable> uniform_vars_;
-  };
-  Buffer<util::WeakResource> pending_;
-  Buffer<std::optional>      current_;
-  bool                       commited_ = false;
+  } pending_, current_;
+  bool commited_ = false;
 
   // nonnull; Note that GlBaseTechnique is destroyed
   // when RenderingUnit is going to be destroyed
