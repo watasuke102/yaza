@@ -4,21 +4,24 @@
 
 #include <cstdlib>
 #include <exception>
+#include <stdexcept>
 
 #include "common.hpp"
 #include "server.hpp"
 
 int main() {
   try {
-    yaza::Server server;
-    if (server.is_creation_failed()) {
-      LOG_ERR("Failed to create server; aborting");
-      throw std::exception();
+    {
+      yaza::Server server;
+      if (server.is_creation_failed()) {
+        throw std::runtime_error("Failed to create server; aborting");
+      }
+      server.start();
     }
-    server.start();
-    LOG_ERR("Exiting gracefully");
+    LOG_INFO("Exiting gracefully");
     return EXIT_SUCCESS;
   } catch (std::exception& e) {
+    LOG_ERR("%s", e.what());
     return EXIT_FAILURE;
   }
 }

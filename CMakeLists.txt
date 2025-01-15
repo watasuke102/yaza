@@ -144,7 +144,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${local_inc_dirs})
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${lib_inc_dirs})
 target_link_libraries(${PROJECT_NAME} ${link_libs})
 target_compile_options(${PROJECT_NAME} PRIVATE 
-  -Wall -Wextra -Wpedantic -Wno-gnu-zero-variadic-macro-arguments
+  -Wall -Wextra -Wpedantic -Wno-gnu-zero-variadic-macro-arguments -Wno-c99-designator
   -ffile-prefix-map=${CMAKE_SOURCE_DIR}/src/=
   -ffile-prefix-map=${CMAKE_SOURCE_DIR}/inc/=
 )

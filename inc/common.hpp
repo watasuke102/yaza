@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 
@@ -14,7 +15,7 @@
 #define ATTRIB_PRINTF(start, end)
 #endif
 namespace yaza::log {
-enum class Severity { ERR, WARN, INFO, DEBUG };
+enum class Severity : uint8_t { ERR, WARN, INFO, DEBUG };
 void vprintf(const char* tag, Severity s, const char* file, int line,
     const char* __restrict format, va_list arg) ATTRIB_PRINTF(5, 0);
 void printf(const char* tag, Severity s, const char* file, int line,
