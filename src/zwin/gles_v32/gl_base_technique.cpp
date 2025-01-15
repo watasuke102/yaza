@@ -13,10 +13,10 @@
 #include <cstring>
 #include <memory>
 #include <optional>
-#include <variant>
 
 #include "common.hpp"
 #include "remote/remote.hpp"
+#include "util/visitor_list.hpp"
 #include "util/weakable_unique_ptr.hpp"
 #include "zwin/gles_v32/gl_buffer.hpp"
 #include "zwin/gles_v32/gl_program.hpp"
@@ -74,22 +74,22 @@ void GlBaseTechnique::commit() {
 
   this->current_.draw_api_args_changed_ = this->pending_.draw_api_args_changed_;
   if (this->pending_.draw_api_args_changed_) {
-    auto& pending = this->pending_.draw_api_args_;  // alias
-    auto& current = this->current_.draw_api_args_;  // alias
-    if (std::holds_alternative<std::nullopt_t>(pending)) {
-      current.emplace<std::nullopt_t>(std::nullopt);
-    } else if (std::holds_alternative<std::unique_ptr<DrawArraysArgs>>(
-                   pending)) {
-      current = std::get<std::unique_ptr<DrawArraysArgs>>(std::move(pending));
-    } else {
-      auto args_ptr =
-          std::get<std::unique_ptr<DrawElementsArgs>>(std::move(pending));
-      if (auto* buf = args_ptr->element_array_buffer_.lock()) {
-        buf->commit();
-      }
-      current = std::move(args_ptr);
-    }
-    pending                               = std::nullopt;
+    util::VisitorList(
+        [this](std::unique_ptr<DrawArraysArgs>& args) {
+          this->current_.draw_api_args_ = std::move(args);
+        },
+        [this](std::unique_ptr<DrawElementsArgs>& args) {
+          if (auto* buf = args->element_array_buffer_.lock()) {
+            buf->commit();
+          }
+          this->current_.draw_api_args_ = std::move(args);
+        },
+        [this](std::nullopt_t) {
+          this->current_.draw_api_args_ = std::nullopt;
+        })
+        .visit(this->pending_.draw_api_args_);
+
+    this->pending_.draw_api_args_         = std::nullopt;
     this->pending_.draw_api_args_changed_ = false;
   }
 
@@ -143,21 +143,20 @@ void GlBaseTechnique::sync(bool force_sync) {
     }
     auto* value = uniform_var.value_.get();
     if (uniform_var.col_ == 1) {
+      auto f = [this, &uniform_var](auto* value) {
+        this->proxy_->get()->GlUniformVector(uniform_var.location_,
+            std::move(uniform_var.name_), uniform_var.row_, uniform_var.count_,
+            value);
+      };
       switch (uniform_var.type_) {
         case ZWN_GL_BASE_TECHNIQUE_UNIFORM_VARIABLE_TYPE_INT:
-          this->proxy_->get()->GlUniformVector(uniform_var.location_,
-              std::move(uniform_var.name_), uniform_var.row_,
-              uniform_var.count_, static_cast<int32_t*>(value));
+          f(static_cast<int32_t*>(value));
           break;
         case ZWN_GL_BASE_TECHNIQUE_UNIFORM_VARIABLE_TYPE_UINT:
-          this->proxy_->get()->GlUniformVector(uniform_var.location_,
-              std::move(uniform_var.name_), uniform_var.row_,
-              uniform_var.count_, static_cast<uint32_t*>(value));
+          f(static_cast<uint32_t*>(value));
           break;
         case ZWN_GL_BASE_TECHNIQUE_UNIFORM_VARIABLE_TYPE_FLOAT:
-          this->proxy_->get()->GlUniformVector(uniform_var.location_,
-              std::move(uniform_var.name_), uniform_var.row_,
-              uniform_var.count_, static_cast<float*>(value));
+          f(static_cast<float*>(value));
           break;
         default:
           // unreachable!()
@@ -171,25 +170,26 @@ void GlBaseTechnique::sync(bool force_sync) {
     }
   }
 
-  if (auto* args = std::get_if<std::unique_ptr<DrawArraysArgs>>(
-          &this->current_.draw_api_args_)) {
-    if (kShouldSync(this->current_.draw_api_args_changed_)) {
-      this->proxy_->get()->GlDrawArrays(
-          args->get()->mode_, args->get()->first_, args->get()->count_);
-    }
-  } else if (auto* args = std::get_if<std::unique_ptr<DrawElementsArgs>>(
-                 &this->current_.draw_api_args_)) {
-    auto* element_array_buffer = args->get()->element_array_buffer_.lock();
-    if (!element_array_buffer) {
-      return;
-    }
-    element_array_buffer->sync(force_sync);
-    if (kShouldSync(this->current_.draw_api_args_changed_)) {
-      this->proxy_->get()->GlDrawElements(args->get()->mode_,
-          args->get()->count_, args->get()->type_, args->get()->offset_,
-          element_array_buffer->remote_id());
-    }
-  }
+  util::VisitorList(
+      [this, &kShouldSync](std::unique_ptr<DrawArraysArgs>& args) {
+        if (kShouldSync(this->current_.draw_api_args_changed_)) {
+          this->proxy_->get()->GlDrawArrays(
+              args->mode_, args->first_, args->count_);
+        }
+      },
+      [this, &kShouldSync, force_sync](
+          std::unique_ptr<DrawElementsArgs>& args) {
+        auto* element_array_buffer = args->element_array_buffer_.lock();
+        if (!element_array_buffer) {
+          return;
+        }
+        element_array_buffer->sync(force_sync);
+        if (kShouldSync(this->current_.draw_api_args_changed_)) {
+          this->proxy_->get()->GlDrawElements(args->mode_, args->count_,
+              args->type_, args->offset_, element_array_buffer->remote_id());
+        }
+      })
+      .visit(this->current_.draw_api_args_);
 }
 
 void GlBaseTechnique::request_bind_program(wl_resource* resource) {
