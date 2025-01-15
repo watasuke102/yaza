@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include "server.hpp"
+#include "zwin/region.hpp"
 #include "zwin/virtual_object.hpp"
 
 namespace yaza::zwin::compositor {
@@ -15,9 +16,8 @@ void create_virtual_object(
     wl_client* client, wl_resource* /*resource*/, uint32_t id) {
   virtual_object::create(client, id);
 }
-void create_region(
-    wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*id*/) {
-  // TODO
+void create_region(wl_client* client, wl_resource* /*resource*/, uint32_t id) {
+  region::create(client, id);
 }
 const struct zwn_compositor_interface kImpl = {
     .create_virtual_object = create_virtual_object,

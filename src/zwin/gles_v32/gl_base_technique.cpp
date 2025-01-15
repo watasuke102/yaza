@@ -15,6 +15,7 @@
 #include <optional>
 #include <variant>
 
+#include "common.hpp"
 #include "remote/remote.hpp"
 #include "util/weakable_unique_ptr.hpp"
 #include "zwin/gles_v32/gl_buffer.hpp"
@@ -113,6 +114,7 @@ void GlBaseTechnique::commit() {
 }
 
 void GlBaseTechnique::sync(bool force_sync) {
+  LOG_DEBUG("sync: GlBaseTechnique");
   if (!this->proxy_.has_value()) {
     this->proxy_ = zen::remote::server::CreateGlBaseTechnique(
         remote::g_remote->channel_nonnull(), this->owner_->remote_id());

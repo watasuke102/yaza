@@ -9,6 +9,8 @@
 
 #include <cstdint>
 #include <ctime>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/vec3.hpp>
 
 #include "common.hpp"
 #include "remote/remote.hpp"
@@ -46,7 +48,6 @@ VirtualObject::~VirtualObject() {
   LOG_DEBUG("destructor: VirtualObject");
   wl_list_remove(&this->pending_.frame_callback_list_);
   wl_list_remove(&this->current_.frame_callback_list_);
-  this->events_.committed_.emit(nullptr);
   this->destroying_ = true;  // disable removing RenderingUnit from list
   for (auto* unit : this->rendering_unit_list_) {
     delete unit;
@@ -58,7 +59,7 @@ void VirtualObject::commit() {
       &this->pending_.frame_callback_list_);
   wl_list_init(&this->pending_.frame_callback_list_);
   this->committed_ = true;
-
+  this->events_.committed_.emit(nullptr);
   if (remote::g_remote->has_session()) {
     // sync only updated (damaged) data
     this->sync(false);
@@ -66,13 +67,20 @@ void VirtualObject::commit() {
 }
 
 void VirtualObject::sync(bool force_sync) {
+  LOG_DEBUG(
+      "sync: VirtualObject (force_sync=%s)", force_sync ? "true" : "false");
   if (!this->proxy_.has_value()) {
     this->proxy_ = zen::remote::server::CreateVirtualObject(
         remote::g_remote->channel_nonnull());
+    auto v = glm::vec3{0.F, 1.F, -3.F};
+    auto q = glm::quat();
+    this->proxy_->get()->Move(
+        static_cast<float*>(&v.x), static_cast<float*>(&q.x));
   }
   for (auto* unit : this->rendering_unit_list_) {
     unit->sync(force_sync);
   }
+  this->proxy_->get()->Commit();
 }
 
 void VirtualObject::add_rendering_unit(

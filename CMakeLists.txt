@@ -104,11 +104,13 @@ set(lib_inc_dirs
   ${EXTERNAL_PROJ_PREFIX}/include
   ${GENERATED_PROTO_DST}
   ${CMAKE_CURRENT_LIST_DIR}/3rdparty/zen-remote/include
+  ${CMAKE_CURRENT_LIST_DIR}/3rdparty/zen-remote/3rd-party/glm
 )
 set(link_libs
   ${EXTERNAL_PROJ_PREFIX}/lib/libwayland-server.a
   ${EXTERNAL_PROJ_PREFIX}/lib/libffi.a
   zen_remote::server
+  glm::glm # already added by zen-remote
 )
 
 function(generate_proto_header file_name xml_relative_path)
