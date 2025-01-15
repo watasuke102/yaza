@@ -55,38 +55,40 @@ Remote::Remote(wl_event_loop* loop)
     , current_session_(std::nullopt)
     , peer_manager_(zen::remote::server::CreatePeerManager(
           std::make_unique<Loop>(loop))) {
-  this->peer_manager_->on_peer_discover.Connect([this](uint64_t peer_id) {
-    auto peer = this->peer_manager_->Get(peer_id);
-    if (!peer) {
-      return;
-    }
-    LOG_DEBUG("(PeerManager) peer is discovered: id=%lu, host=`%s`", peer_id,
-        peer->host().c_str());
-    if (this->has_session()) {
-      return;
-    }
-    try {
-      this->current_session_ =
-          std::make_unique<Session>(std::move(peer), this->wl_loop_, [this]() {
-            LOG_DEBUG("disconnection handler for ISession");
-            if (this->has_session()) {
-              this->disconnect();
-            }
-          });
-    } catch (std::exception& _) {
-      this->current_session_ = std::nullopt;
-      return;
-    }
-    LOG_DEBUG("session is established with peer id=%lu", peer_id);
-    this->events_.session_established_.emit(this->current_session_->get());
-  });
+  this->peer_discover_signal_disconnector_ =
+      this->peer_manager_->on_peer_discover.Connect([this](uint64_t peer_id) {
+        auto peer = this->peer_manager_->Get(peer_id);
+        if (!peer) {
+          return;
+        }
+        LOG_DEBUG("(PeerManager) peer is discovered: id=%lu, host=`%s`",
+            peer_id, peer->host().c_str());
+        if (this->has_session()) {
+          return;
+        }
+        try {
+          this->current_session_ = std::make_unique<Session>(
+              std::move(peer), this->wl_loop_, [this]() {
+                LOG_DEBUG("disconnection handler for ISession");
+                if (this->has_session()) {
+                  this->disconnect();
+                }
+              });
+        } catch (std::exception& _) {
+          this->current_session_ = std::nullopt;
+          return;
+        }
+        LOG_DEBUG("session is established with peer id=%lu", peer_id);
+        this->events_.session_established_.emit(this->current_session_->get());
+      });
 
-  this->peer_manager_->on_peer_lost.Connect([this](uint64_t peer_id) {
-    LOG_DEBUG("(PeerManager) peer is lost      : id=%lu", peer_id);
-    if (!this->has_session()) {
-      return;
-    }
-  });
+  this->peer_lost_signal_disconnector_ =
+      this->peer_manager_->on_peer_lost.Connect([this](uint64_t peer_id) {
+        LOG_DEBUG("(PeerManager) peer is lost      : id=%lu", peer_id);
+        if (!this->has_session()) {
+          return;
+        }
+      });
 
   constexpr uint32_t kBusynessThreshold = 100;
   this->frame_timer_source_             = wl_event_loop_add_timer(
@@ -122,6 +124,8 @@ Remote::Remote(wl_event_loop* loop)
 }
 Remote::~Remote() {
   LOG_DEBUG("destroying Remote");
+  this->peer_discover_signal_disconnector_->Disconnect();
+  this->peer_lost_signal_disconnector_->Disconnect();
   if (this->has_session()) {
     this->disconnect();
   }

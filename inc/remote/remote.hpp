@@ -37,6 +37,11 @@ class Remote {
     util::Signal<std::nullptr_t*> session_frame_;
   } events_;
 
+  std::unique_ptr<zen::remote::Signal<void(uint64_t)>::Connection>
+      peer_discover_signal_disconnector_;
+  std::unique_ptr<zen::remote::Signal<void(uint64_t)>::Connection>
+      peer_lost_signal_disconnector_;
+
   std::optional<std::unique_ptr<Session>>            current_session_;
   std::unique_ptr<zen::remote::server::IPeerManager> peer_manager_;
   std::chrono::steady_clock::time_point              prev_frame_;

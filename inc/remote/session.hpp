@@ -15,7 +15,7 @@ class Session {
  public:
   DISABLE_MOVE_AND_COPY(Session);
   explicit Session(const std::shared_ptr<zen::remote::server::IPeer>& peer,
-      wl_event_loop* wl_loop, std::function<void()> on_disconnect);
+      wl_event_loop* wl_loop, std::function<void()>&& on_disconnect);
   ~Session();
   [[nodiscard]] uint64_t                                       id() const;
   [[nodiscard]] std::shared_ptr<zen::remote::server::IChannel> channel() const;
@@ -24,6 +24,8 @@ class Session {
   wl_event_loop* wl_loop_;
   uint64_t       peer_id_;
 
+  std::unique_ptr<zen::remote::Signal<void()>::Connection>
+      disconnect_signal_disconnector_;
   std::shared_ptr<zen::remote::server::ISession> session_;
   std::shared_ptr<zen::remote::server::IChannel> channel_;
 };
