@@ -16,8 +16,9 @@
 
 #include "common.hpp"
 #include "remote/remote.hpp"
-#include "util/visitor_list.hpp"
 #include "util/weakable_unique_ptr.hpp"
+#include "zwin/gles_v32/base_technique/draw_api_args.hpp"
+#include "zwin/gles_v32/base_technique/uniform_variables.hpp"
 #include "zwin/gles_v32/gl_buffer.hpp"
 #include "zwin/gles_v32/gl_program.hpp"
 #include "zwin/gles_v32/gl_vertex_array.hpp"
@@ -72,50 +73,10 @@ void GlBaseTechnique::commit() {
     vertex_array->commit();
   }
 
-  this->current_.draw_api_args_changed_ = this->pending_.draw_api_args_changed_;
-  if (this->pending_.draw_api_args_changed_) {
-    util::VisitorList(
-        [this](std::unique_ptr<DrawArraysArgs>& args) {
-          this->current_.draw_api_args_ = std::move(args);
-        },
-        [this](std::unique_ptr<DrawElementsArgs>& args) {
-          if (auto* buf = args->element_array_buffer_.lock()) {
-            buf->commit();
-          }
-          this->current_.draw_api_args_ = std::move(args);
-        },
-        [this](std::nullopt_t) {
-          this->current_.draw_api_args_ = std::nullopt;
-        })
-        .visit(this->pending_.draw_api_args_);
-
-    this->pending_.draw_api_args_         = std::nullopt;
-    this->pending_.draw_api_args_changed_ = false;
-  }
-
-  for (auto& current : this->current_.uniform_vars_) {
-    current.newly_comitted_ = false;
-  }
-  // This loop seems like a bad algorithm with O(n*m) time complexity,
-  // but (basically) the number of Uniform Variables can be assumed
-  // to be small enough, right?
-  for (auto it = this->pending_.uniform_vars_.begin();
-      it != this->pending_.uniform_vars_.end();) {
-    auto& pending = *it;
-    this->current_.uniform_vars_.remove_if(
-        [&pending](UniformVariable& current) {
-          if (!pending.name_.empty() && !current.name_.empty()) {
-            return pending.name_ == current.name_;
-          }
-          if (pending.name_.empty() || current.name_.empty()) {
-            return false;
-          }
-          return pending.location_ == current.location_;
-        });
-    pending.newly_comitted_ = true;
-    this->current_.uniform_vars_.emplace_back(std::move(pending));
-    it = this->pending_.uniform_vars_.erase(it);
-  }
+  DrawApiArgs::commit(
+      this->pending_.draw_api_args_, this->current_.draw_api_args_);
+  UniformVariableList::commit(
+      this->pending_.uniform_vars_, this->current_.uniform_vars_);
 }
 
 void GlBaseTechnique::sync(bool force_sync) {
@@ -141,59 +102,8 @@ void GlBaseTechnique::sync(bool force_sync) {
       this->proxy_->get()->BindProgram(program->remote_id());
     }
   }
-
-  for (auto& uniform_var : this->current_.uniform_vars_) {
-    if (!kShouldSync(uniform_var.newly_comitted_)) {
-      continue;
-    }
-    auto* value = uniform_var.value_.get();
-    if (uniform_var.col_ == 1) {
-      auto f = [this, &uniform_var](auto* value) {
-        this->proxy_->get()->GlUniformVector(uniform_var.location_,
-            uniform_var.name_, uniform_var.row_, uniform_var.count_, value);
-      };
-      switch (uniform_var.type_) {
-        case ZWN_GL_BASE_TECHNIQUE_UNIFORM_VARIABLE_TYPE_INT:
-          f(static_cast<int32_t*>(value));
-          break;
-        case ZWN_GL_BASE_TECHNIQUE_UNIFORM_VARIABLE_TYPE_UINT:
-          f(static_cast<uint32_t*>(value));
-          break;
-        case ZWN_GL_BASE_TECHNIQUE_UNIFORM_VARIABLE_TYPE_FLOAT:
-          f(static_cast<float*>(value));
-          break;
-        default:
-          // unreachable!()
-          break;
-      }
-    } else {
-      this->proxy_->get()->GlUniformMatrix(uniform_var.location_,
-          uniform_var.name_, uniform_var.col_, uniform_var.row_,
-          uniform_var.count_, uniform_var.transpose_,
-          static_cast<float*>(value));
-    }
-  }
-
-  util::VisitorList(
-      [this, &kShouldSync](std::unique_ptr<DrawArraysArgs>& args) {
-        if (kShouldSync(this->current_.draw_api_args_changed_)) {
-          this->proxy_->get()->GlDrawArrays(
-              args->mode_, args->first_, args->count_);
-        }
-      },
-      [this, &kShouldSync, force_sync](
-          std::unique_ptr<DrawElementsArgs>& args) {
-        auto* element_array_buffer = args->element_array_buffer_.lock();
-        if (!element_array_buffer) {
-          return;
-        }
-        element_array_buffer->sync(force_sync);
-        if (kShouldSync(this->current_.draw_api_args_changed_)) {
-          this->proxy_->get()->GlDrawElements(args->mode_, args->count_,
-              args->type_, args->offset_, element_array_buffer->remote_id());
-        }
-      })
-      .visit(this->current_.draw_api_args_);
+  this->current_.uniform_vars_.sync(this->proxy_.value(), force_sync);
+  this->current_.draw_api_args_.sync(this->proxy_.value(), force_sync);
 }
 
 void GlBaseTechnique::request_bind_program(wl_resource* resource) {
@@ -208,23 +118,23 @@ void GlBaseTechnique::request_bind_vertex_array(wl_resource* resource) {
   this->pending_.vertex_array_         = (*tmp).weak();
   this->pending_.vertex_array_changed_ = true;
 }
-void GlBaseTechnique::new_uniform_var(UniformVariable&& var) {
-  this->pending_.uniform_vars_.emplace_back(std::move(var));
+void GlBaseTechnique::new_uniform_var(
+    zwn_gl_base_technique_uniform_variable_type type, uint32_t location,
+    const char* name, uint32_t col, uint32_t row, uint32_t count,
+    bool transpose, void* value) {
+  this->pending_.uniform_vars_.emplace(
+      type, location, name, col, row, count, transpose, value);
 }
 void GlBaseTechnique::request_draw_arrays(
     uint32_t mode, int32_t first, uint32_t count) {
-  this->pending_.draw_api_args_changed_ = true;
-  this->pending_.draw_api_args_.emplace<std::unique_ptr<DrawArraysArgs>>(
-      std::make_unique<DrawArraysArgs>(mode, first, count));
+  this->pending_.draw_api_args_.set_arrays_args(mode, first, count);
 }
 void GlBaseTechnique::request_draw_elements(uint32_t mode, uint32_t count,
     uint32_t type, uint64_t offset, wl_resource* element_array_buffer) {
   auto* tmp = static_cast<util::UniPtr<gl_buffer::GlBuffer>*>(
       wl_resource_get_user_data(element_array_buffer));
-  this->pending_.draw_api_args_changed_ = true;
-  this->pending_.draw_api_args_.emplace<std::unique_ptr<DrawElementsArgs>>(
-      std::make_unique<DrawElementsArgs>(
-          mode, count, type, offset, (*tmp).weak()));
+  this->pending_.draw_api_args_.set_elements_args(
+      mode, count, type, offset, (*tmp).weak());
 }
 
 namespace {
@@ -277,8 +187,8 @@ void uniform_vector(wl_client* /*client*/, wl_resource* resource,
 
   auto type_enum =
       static_cast<zwn_gl_base_technique_uniform_variable_type>(type);
-  self->new_uniform_var(UniformVariable(
-      type_enum, location, name, 1, size, count, false, value->data));
+  self->new_uniform_var(
+      type_enum, location, name, 1, size, count, false, value->data);
 }
 void uniform_matrix(wl_client* /*client*/, wl_resource* resource,
     uint32_t location, const char* name, uint32_t col, uint32_t row,
@@ -308,9 +218,8 @@ void uniform_matrix(wl_client* /*client*/, wl_resource* resource,
         4 * col * row * count, value->size);
     return;
   }
-  self->new_uniform_var(
-      UniformVariable(ZWN_GL_BASE_TECHNIQUE_UNIFORM_VARIABLE_TYPE_FLOAT,
-          location, name, col, row, count, transpose, value->data));
+  self->new_uniform_var(ZWN_GL_BASE_TECHNIQUE_UNIFORM_VARIABLE_TYPE_FLOAT,
+      location, name, col, row, count, transpose, value->data);
 }
 void draw_arrays(wl_client* /*client*/, wl_resource* resource, uint32_t mode,
     int32_t first, uint32_t count) {
