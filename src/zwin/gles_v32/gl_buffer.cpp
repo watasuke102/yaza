@@ -14,12 +14,10 @@
 #include <optional>
 
 #include "common.hpp"
-#include "remote/loop.hpp"
 #include "remote/remote.hpp"
+#include "util/data_pool.hpp"
 #include "util/weak_resource.hpp"
 #include "util/weakable_unique_ptr.hpp"
-#include "zen-remote/server/buffer.h"
-#include "zwin/shm/shm_buffer.hpp"
 
 namespace yaza::zwin::gles_v32::gl_buffer {
 GlBuffer::GlBuffer(wl_event_loop* loop) : loop_(loop) {
@@ -39,22 +37,14 @@ void GlBuffer::commit() {
   if (!this->pending_.data_.has_resource()) {
     return;
   }
-  if (this->current_.data_) {
+  if (this->current_.data_.has_data()) {
     this->current_.data_.reset();
   }
-  auto* buffer         = this->pending_.data_.get_buffer();
-  auto* data           = zwin::shm_buffer::get_buffer_data(buffer);
-  auto  size           = zwin::shm_buffer::get_buffer_size(buffer);
-  this->current_.data_ = std::shared_ptr<void>(malloc(size), free);
-
-  zwin::shm_buffer::begin_access(buffer);
-  std::memcpy(this->current_.data_.get(), data, size);
-  zwin::shm_buffer::end_access(buffer);
-
+  this->current_.data_.from_weak_resource(this->pending_.data_);
+  this->current_.data_size_    = this->current_.data_.size();
   this->current_.data_damaged_ = true;
   this->current_.target_       = this->pending_.target_;
   this->current_.usage_        = this->pending_.usage_;
-  this->current_.data_size_    = size;
 
   this->pending_.data_.zwn_buffer_send_release();
   this->pending_.data_.unlink();
@@ -68,14 +58,8 @@ void GlBuffer::sync(bool force_sync) {
   if (!force_sync && !this->current_.data_damaged_) {
     return;
   }
-  auto data(this->current_.data_);
-  auto buffer = zen::remote::server::CreateBuffer(
-      data.get(),
-      [data = std::move(data)]() mutable {
-        data.reset();
-      },
-      std::make_unique<remote::Loop>(loop_));
-  this->proxy_->get()->GlBufferData(std::move(buffer), this->current_.target_,
+  this->proxy_->get()->GlBufferData(
+      this->current_.data_.create_buffer(this->loop_), this->current_.target_,
       this->current_.data_size_, this->current_.usage_);
   this->current_.data_damaged_ = false;
 }

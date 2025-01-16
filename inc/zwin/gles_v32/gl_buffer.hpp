@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "common.hpp"
+#include "util/data_pool.hpp"
 #include "util/signal.hpp"
 #include "util/weak_resource.hpp"
 
@@ -33,11 +34,11 @@ class GlBuffer {
     util::WeakResource<void*> data_;
   } pending_;
   struct {
-    bool                  data_damaged_;
-    uint32_t              target_;
-    uint32_t              usage_;
-    std::shared_ptr<void> data_;
-    ssize_t               data_size_;
+    bool           data_damaged_;
+    uint32_t       target_;
+    uint32_t       usage_;
+    util::DataPool data_;
+    ssize_t        data_size_;
   } current_;
 
   wl_event_loop*                  loop_;

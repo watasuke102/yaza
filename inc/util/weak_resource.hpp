@@ -67,7 +67,7 @@ class WeakResource {
     }
     return nullptr;
   }
-  zwin::shm_buffer::ShmBuffer* get_buffer() {
+  zwin::shm_buffer::ShmBuffer* get_buffer() const {
     return zwin::shm_buffer::get_buffer(this->resource_);
   }
   void zwn_buffer_send_release() {
