@@ -58,18 +58,18 @@ void GlBaseTechnique::commit() {
   if (this->pending_.program_changed_) {
     this->current_.program_         = this->pending_.program_;
     this->pending_.program_changed_ = false;
-    if (auto* program = this->current_.program_.lock()) {
-      program->commit();
-    }
+  }
+  if (auto* program = this->current_.program_.lock()) {
+    program->commit();
   }
 
   this->current_.vertex_array_changed_ = this->pending_.vertex_array_changed_;
   if (this->pending_.vertex_array_changed_) {
     this->current_.vertex_array_         = this->pending_.vertex_array_;
     this->pending_.vertex_array_changed_ = false;
-    if (auto* vertex_array = this->current_.vertex_array_.lock()) {
-      vertex_array->commit();
-    }
+  }
+  if (auto* vertex_array = this->current_.vertex_array_.lock()) {
+    vertex_array->commit();
   }
 
   this->current_.draw_api_args_changed_ = this->pending_.draw_api_args_changed_;
@@ -93,10 +93,15 @@ void GlBaseTechnique::commit() {
     this->pending_.draw_api_args_changed_ = false;
   }
 
+  for (auto& current : this->current_.uniform_vars_) {
+    current.newly_comitted_ = false;
+  }
   // This loop seems like a bad algorithm with O(n*m) time complexity,
   // but (basically) the number of Uniform Variables can be assumed
   // to be small enough, right?
-  for (auto& pending : this->pending_.uniform_vars_) {
+  for (auto it = this->pending_.uniform_vars_.begin();
+      it != this->pending_.uniform_vars_.end();) {
+    auto& pending = *it;
     this->current_.uniform_vars_.remove_if(
         [&pending](UniformVariable& current) {
           if (!pending.name_.empty() && !current.name_.empty()) {
@@ -108,9 +113,9 @@ void GlBaseTechnique::commit() {
           return pending.location_ == current.location_;
         });
     pending.newly_comitted_ = true;
+    this->current_.uniform_vars_.emplace_back(std::move(pending));
+    it = this->pending_.uniform_vars_.erase(it);
   }
-  this->current_.uniform_vars_.splice(
-      this->current_.uniform_vars_.end(), this->pending_.uniform_vars_);
 }
 
 void GlBaseTechnique::sync(bool force_sync) {
@@ -145,8 +150,7 @@ void GlBaseTechnique::sync(bool force_sync) {
     if (uniform_var.col_ == 1) {
       auto f = [this, &uniform_var](auto* value) {
         this->proxy_->get()->GlUniformVector(uniform_var.location_,
-            std::move(uniform_var.name_), uniform_var.row_, uniform_var.count_,
-            value);
+            uniform_var.name_, uniform_var.row_, uniform_var.count_, value);
       };
       switch (uniform_var.type_) {
         case ZWN_GL_BASE_TECHNIQUE_UNIFORM_VARIABLE_TYPE_INT:
@@ -164,7 +168,7 @@ void GlBaseTechnique::sync(bool force_sync) {
       }
     } else {
       this->proxy_->get()->GlUniformMatrix(uniform_var.location_,
-          std::move(uniform_var.name_), uniform_var.col_, uniform_var.row_,
+          uniform_var.name_, uniform_var.col_, uniform_var.row_,
           uniform_var.count_, uniform_var.transpose_,
           static_cast<float*>(value));
     }
