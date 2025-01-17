@@ -83,11 +83,8 @@ Remote::Remote(wl_event_loop* loop)
       });
 
   this->peer_lost_signal_disconnector_ =
-      this->peer_manager_->on_peer_lost.Connect([this](uint64_t peer_id) {
+      this->peer_manager_->on_peer_lost.Connect([](uint64_t peer_id) {
         LOG_DEBUG("(PeerManager) peer is lost      : id=%lu", peer_id);
-        if (!this->has_session()) {
-          return;
-        }
       });
 
   constexpr uint32_t kBusynessThreshold = 100;
