@@ -14,8 +14,8 @@
 #include <cstring>
 
 #include "server.hpp"
+#include "util/convert.hpp"
 #include "zwin/shm/shm_pool.hpp"
-#include "zwin/shm/shm_util.hpp"
 
 namespace yaza::zwin::shm {
 namespace {
@@ -26,7 +26,7 @@ void create_pool(wl_client* client, wl_resource* resource, uint32_t id,
   int         seals                = 0;
   bool        sigbuf_is_impossible = false;
 
-  if (shm_util::wl_array_to_off_t(size_array, &size) != 0) {
+  if (util::convert_wl_array(size_array, &size) != 0) {
     wl_resource_post_error(
         resource, ZWN_SHM_ERROR_INVALID_SIZE, "requested size is invalid");
     close(fd);

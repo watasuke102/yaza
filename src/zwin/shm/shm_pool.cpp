@@ -11,8 +11,8 @@
 #include <cstring>
 
 #include "common.hpp"
+#include "util/convert.hpp"
 #include "zwin/shm/shm_buffer.hpp"
-#include "zwin/shm/shm_util.hpp"
 
 #ifndef MREMAP_MAYMOVE
 #error "mremap(MREMAP_MAYMOVE) is not implemented but it is required"
@@ -50,8 +50,8 @@ void create_buffer(wl_client* client, wl_resource* resource, uint32_t id,
 
   off_t offset = 0;
   off_t size   = 0;
-  if (shm_util::wl_array_to_off_t(offset_array, &offset) != 0 ||
-      shm_util::wl_array_to_off_t(size_array, &size) != 0) {
+  if (util::convert_wl_array(offset_array, &offset) != 0 ||
+      util::convert_wl_array(size_array, &size) != 0) {
     wl_resource_post_error(
         resource, ZWN_SHM_ERROR_INVALID_SIZE, "requested size is invalid");
   }
