@@ -27,8 +27,7 @@ GlProgram::GlProgram(wl_resource* resource) : resource_(resource) {
 }
 GlProgram::~GlProgram() {
   LOG_DEBUG("destructor: GlProgram");
-  this->current_.shaders_.splice(
-      this->current_.shaders_.end(), this->pending_.shaders_);
+  this->current_.shaders_.merge(this->pending_.shaders_);
   for (auto* shader : this->current_.shaders_) {
     shader->set_owner(util::WeakPtr<gl_program::GlProgram>());
     delete shader;
@@ -48,8 +47,7 @@ void GlProgram::commit() {
     this->current_.should_link_ = true;
     this->current_.linked_      = true;
   }
-  this->current_.shaders_.splice(
-      this->current_.shaders_.end(), this->pending_.shaders_);
+  this->current_.shaders_.merge(this->pending_.shaders_);
   this->pending_.shaders_.clear();
   this->pending_.damaged_     = false;
   this->pending_.should_link_ = false;
