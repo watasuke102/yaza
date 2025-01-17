@@ -5,13 +5,14 @@
 #include <zwin-gles-v32-protocol.h>
 
 #include <cstdint>
-#include <memory>
 
 #include "server.hpp"
 #include "zwin/gles_v32/gl_base_technique.hpp"
 #include "zwin/gles_v32/gl_buffer.hpp"
 #include "zwin/gles_v32/gl_program.hpp"
+#include "zwin/gles_v32/gl_sampler.hpp"
 #include "zwin/gles_v32/gl_shader.hpp"
+#include "zwin/gles_v32/gl_texture.hpp"
 #include "zwin/gles_v32/gl_vertex_array.hpp"
 #include "zwin/gles_v32/rendering_unit.hpp"
 #include "zwin/virtual_object.hpp"
@@ -40,13 +41,14 @@ void create_gl_program(
     wl_client* client, wl_resource* /*resource*/, uint32_t id) {
   gl_program::create(client, id);
 }
-void create_gl_texture(
-    wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*id*/) {
-  // TODO
+void create_gl_texture(wl_client* client, wl_resource* resource, uint32_t id) {
+  auto* server =
+      static_cast<yaza::Server*>(wl_resource_get_user_data(resource));
+  gl_texture::create(client, id, server->loop());
 }
 void create_gl_sampler(
-    wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*id*/) {
-  // TODO
+    wl_client* client, wl_resource* /*resource*/, uint32_t id) {
+  gl_sampler::create(client, id);
 }
 void create_gl_vertex_array(
     wl_client* client, wl_resource* /*resource*/, uint32_t id) {
