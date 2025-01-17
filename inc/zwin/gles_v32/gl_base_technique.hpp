@@ -15,8 +15,11 @@
 #include "util/signal.hpp"
 #include "util/weakable_unique_ptr.hpp"
 #include "zwin/gles_v32/base_technique/draw_api_args.hpp"
+#include "zwin/gles_v32/base_technique/texture_binding.hpp"
 #include "zwin/gles_v32/base_technique/uniform_variables.hpp"
 #include "zwin/gles_v32/gl_program.hpp"
+#include "zwin/gles_v32/gl_sampler.hpp"
+#include "zwin/gles_v32/gl_texture.hpp"
 #include "zwin/gles_v32/gl_vertex_array.hpp"
 
 // Do not include `rendering_unit.hpp` to prevent circular reference
@@ -41,6 +44,9 @@ class GlBaseTechnique {
 
   void request_bind_program(wl_resource* resource);
   void request_bind_vertex_array(wl_resource* resource);
+  void request_bind_texture(uint32_t binding, const char* name, uint32_t target,
+      util::WeakPtr<gl_texture::GlTexture>&& texture,
+      util::WeakPtr<gl_sampler::GlSampler>&& sampler);
   void new_uniform_var(zwn_gl_base_technique_uniform_variable_type type,
       uint32_t location, const char* name, uint32_t col, uint32_t row,
       uint32_t count, bool transpose, void* value);
@@ -56,6 +62,7 @@ class GlBaseTechnique {
     bool                                          vertex_array_changed_ = false;
     util::WeakPtr<gl_vertex_array::GlVertexArray> vertex_array_;
 
+    TextureBindingList  texture_bindings_;
     DrawApiArgs         draw_api_args_;
     UniformVariableList uniform_vars_;
   } pending_, current_;

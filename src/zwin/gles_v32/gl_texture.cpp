@@ -16,6 +16,7 @@
 
 #include "common.hpp"
 #include "remote/remote.hpp"
+#include "util/weakable_unique_ptr.hpp"
 
 namespace yaza::zwin::gles_v32::gl_texture {
 GlTexture::GlTexture(wl_event_loop* loop) : loop_(loop) {
@@ -82,7 +83,8 @@ void destroy(wl_client* /*client*/, wl_resource* resource) {
 void image_2d(wl_client* /* client */, wl_resource* resource, uint32_t target,
     int32_t level, int32_t internal_format, uint32_t width, uint32_t height,
     int32_t border, uint32_t format, uint32_t type, wl_resource* data) {
-  auto* self = static_cast<GlTexture*>(wl_resource_get_user_data(resource));
+  auto* self = static_cast<util::UniPtr<GlTexture>*>(
+      wl_resource_get_user_data(resource));
   Image2dData image_2d{//
       .target_          = target,
       .level_           = level,
@@ -92,12 +94,13 @@ void image_2d(wl_client* /* client */, wl_resource* resource, uint32_t target,
       .border_          = border,
       .format_          = format,
       .type_            = type};
-  self->new_image_2d(image_2d, data);
+  (*self)->new_image_2d(image_2d, data);
 }
 void generate_mipmap(
     wl_client* /*client*/, wl_resource* resource, uint32_t target) {
-  auto* self = static_cast<GlTexture*>(wl_resource_get_user_data(resource));
-  self->request_generate_mipmap(target);
+  auto* self = static_cast<util::UniPtr<GlTexture>*>(
+      wl_resource_get_user_data(resource));
+  (*self)->request_generate_mipmap(target);
 }
 const struct zwn_gl_texture_interface kImpl = {
     .destroy         = destroy,
@@ -106,7 +109,8 @@ const struct zwn_gl_texture_interface kImpl = {
 };  // namespace
 
 void destroy(wl_resource* resource) {
-  auto* self = static_cast<GlTexture*>(wl_resource_get_user_data(resource));
+  auto* self = static_cast<util::UniPtr<GlTexture>*>(
+      wl_resource_get_user_data(resource));
   delete self;
 }
 }  // namespace
@@ -117,7 +121,7 @@ void create(wl_client* client, uint32_t id, wl_event_loop* loop) {
     wl_client_post_no_memory(client);
     return;
   }
-  auto* self = new GlTexture(loop);
+  auto* self = new util::UniPtr<GlTexture>(loop);
   wl_resource_set_implementation(resource, &kImpl, self, destroy);
 }
 }  // namespace yaza::zwin::gles_v32::gl_texture

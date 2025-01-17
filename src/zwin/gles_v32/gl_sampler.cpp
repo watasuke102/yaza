@@ -21,6 +21,7 @@
 #include "remote/remote.hpp"
 #include "util/convert.hpp"
 #include "util/visitor_list.hpp"
+#include "util/weakable_unique_ptr.hpp"
 
 namespace yaza::zwin::gles_v32::gl_sampler {
 namespace {
@@ -184,33 +185,39 @@ void parameter_f(wl_client* /*client*/, wl_resource* resource, uint32_t pname,
         param_array->size, sizeof(float));
     return;
   }
-  auto* self = static_cast<GlSampler*>(wl_resource_get_user_data(resource));
-  self->set_paramater(resource, ParamType::F, pname, param);
+  auto* self = static_cast<util::UniPtr<GlSampler>*>(
+      wl_resource_get_user_data(resource));
+  (*self)->set_paramater(resource, ParamType::F, pname, param);
 }
 void parameter_i(wl_client* /*client*/, wl_resource* resource, uint32_t pname,
     int32_t param) {
-  auto* self = static_cast<GlSampler*>(wl_resource_get_user_data(resource));
-  self->set_paramater(resource, ParamType::I, pname, param);
+  auto* self = static_cast<util::UniPtr<GlSampler>*>(
+      wl_resource_get_user_data(resource));
+  (*self)->set_paramater(resource, ParamType::I, pname, param);
 }
 void parameter_fv(wl_client* /*client*/, wl_resource* resource, uint32_t pname,
     wl_array* params) {
-  auto* self = static_cast<GlSampler*>(wl_resource_get_user_data(resource));
-  self->set_paramater(resource, ParamType::FV, pname, params);
+  auto* self = static_cast<util::UniPtr<GlSampler>*>(
+      wl_resource_get_user_data(resource));
+  (*self)->set_paramater(resource, ParamType::FV, pname, params);
 }
 void parameter_iv(wl_client* /*client*/, wl_resource* resource, uint32_t pname,
     wl_array* params) {
-  auto* self = static_cast<GlSampler*>(wl_resource_get_user_data(resource));
-  self->set_paramater(resource, ParamType::IV, pname, params);
+  auto* self = static_cast<util::UniPtr<GlSampler>*>(
+      wl_resource_get_user_data(resource));
+  (*self)->set_paramater(resource, ParamType::IV, pname, params);
 }
 void parameter_iiv(wl_client* /*client*/, wl_resource* resource, uint32_t pname,
     wl_array* params) {
-  auto* self = static_cast<GlSampler*>(wl_resource_get_user_data(resource));
-  self->set_paramater(resource, ParamType::IIV, pname, params);
+  auto* self = static_cast<util::UniPtr<GlSampler>*>(
+      wl_resource_get_user_data(resource));
+  (*self)->set_paramater(resource, ParamType::IIV, pname, params);
 }
 void parameter_iuiv(wl_client* /*client*/, wl_resource* resource,
     uint32_t pname, wl_array* params) {
-  auto* self = static_cast<GlSampler*>(wl_resource_get_user_data(resource));
-  self->set_paramater(resource, ParamType::IUIV, pname, params);
+  auto* self = static_cast<util::UniPtr<GlSampler>*>(
+      wl_resource_get_user_data(resource));
+  (*self)->set_paramater(resource, ParamType::IUIV, pname, params);
 }
 const struct zwn_gl_sampler_interface kImpl = {
     .destroy       = destroy,
@@ -223,7 +230,8 @@ const struct zwn_gl_sampler_interface kImpl = {
 };
 
 void destroy(wl_resource* resource) {
-  auto* self = static_cast<GlSampler*>(wl_resource_get_user_data(resource));
+  auto* self = static_cast<util::UniPtr<GlSampler>*>(
+      wl_resource_get_user_data(resource));
   delete self;
 }
 }  // namespace
@@ -234,7 +242,7 @@ void create(wl_client* client, uint32_t id) {
     wl_client_post_no_memory(client);
     return;
   }
-  auto* self = new GlSampler();
+  auto* self = new util::UniPtr<GlSampler>();
   wl_resource_set_implementation(resource, &kImpl, self, destroy);
 }
 }  // namespace yaza::zwin::gles_v32::gl_sampler

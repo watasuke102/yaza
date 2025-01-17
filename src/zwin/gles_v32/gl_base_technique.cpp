@@ -21,6 +21,8 @@
 #include "zwin/gles_v32/base_technique/uniform_variables.hpp"
 #include "zwin/gles_v32/gl_buffer.hpp"
 #include "zwin/gles_v32/gl_program.hpp"
+#include "zwin/gles_v32/gl_sampler.hpp"
+#include "zwin/gles_v32/gl_texture.hpp"
 #include "zwin/gles_v32/gl_vertex_array.hpp"
 #include "zwin/gles_v32/rendering_unit.hpp"
 
@@ -77,6 +79,8 @@ void GlBaseTechnique::commit() {
       this->pending_.draw_api_args_, this->current_.draw_api_args_);
   UniformVariableList::commit(
       this->pending_.uniform_vars_, this->current_.uniform_vars_);
+  TextureBindingList::commit(
+      this->pending_.texture_bindings_, this->current_.texture_bindings_);
 }
 
 void GlBaseTechnique::sync(bool force_sync) {
@@ -102,6 +106,7 @@ void GlBaseTechnique::sync(bool force_sync) {
       this->proxy_->get()->BindProgram(program->remote_id());
     }
   }
+  this->current_.texture_bindings_.sync(this->proxy_.value(), force_sync);
   this->current_.uniform_vars_.sync(this->proxy_.value(), force_sync);
   this->current_.draw_api_args_.sync(this->proxy_.value(), force_sync);
 }
@@ -117,6 +122,12 @@ void GlBaseTechnique::request_bind_vertex_array(wl_resource* resource) {
       wl_resource_get_user_data(resource));
   this->pending_.vertex_array_         = (*tmp).weak();
   this->pending_.vertex_array_changed_ = true;
+}
+void GlBaseTechnique::request_bind_texture(uint32_t binding, const char* name,
+    uint32_t target, util::WeakPtr<gl_texture::GlTexture>&& texture,
+    util::WeakPtr<gl_sampler::GlSampler>&& sampler) {
+  this->pending_.texture_bindings_.emplace(
+      binding, name, target, std::move(texture), std::move(sampler));
 }
 void GlBaseTechnique::new_uniform_var(
     zwn_gl_base_technique_uniform_variable_type type, uint32_t location,
@@ -157,10 +168,20 @@ void bind_vertex_array(
     self->request_bind_vertex_array(vertex_array);
   }
 }
-void bind_texture(wl_client* client, wl_resource* /*resource*/,
-    uint32_t /*binding*/, const char* /*name*/, wl_resource* /*texture*/,
-    uint32_t /*target*/, wl_resource* /*sampler*/) {
-  wl_client_post_implementation_error(client, "not yet implemented");
+void bind_texture(wl_client* /* client */, wl_resource* resource,
+    uint32_t binding, const char* name, wl_resource* texture_resource,
+    uint32_t target, wl_resource* sampler_resource) {
+  auto* self =
+      static_cast<GlBaseTechnique*>(wl_resource_get_user_data(resource));
+  if (!self) {
+    return;
+  }
+  auto* texture_ptr = static_cast<util::UniPtr<gl_texture::GlTexture>*>(
+      wl_resource_get_user_data(texture_resource));
+  auto* sampler_ptr = static_cast<util::UniPtr<gl_sampler::GlSampler>*>(
+      wl_resource_get_user_data(sampler_resource));
+  self->request_bind_texture(
+      binding, name, target, (*texture_ptr).weak(), (*sampler_ptr).weak());
 }
 void uniform_vector(wl_client* /*client*/, wl_resource* resource,
     uint32_t location, const char* name, uint32_t type, uint32_t size,
