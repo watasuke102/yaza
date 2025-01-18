@@ -33,17 +33,22 @@ GlTexture::~GlTexture() {
 }
 
 void GlTexture::commit() {
-  if (this->current_.data_.has_data()) {
-    this->current_.data_.reset();
+  if (this->pending_.data_.has_resource()) {
+    if (this->current_.data_.has_data()) {
+      this->current_.data_.reset();
+    }
+    this->current_.image_2d_ = this->pending_.image_2d_;
+    this->current_.data_.from_weak_resource(this->pending_.data_);
+    this->current_.data_changed_ = true;
+
+    this->pending_.data_.zwn_buffer_send_release();
+    this->pending_.data_.unlink();
   }
-  this->current_.image_2d_ = this->pending_.image_2d_;
-  this->current_.data_.from_weak_resource(this->pending_.data_);
-  this->current_.data_changed_ = true;
 
   if (this->pending_.mipmap_target_ != 0) {
     this->current_.mipmap_target_         = this->pending_.mipmap_target_;
     this->current_.mipmap_target_changed_ = true;
-    this->current_.mipmap_target_changed_ = true;
+    this->pending_.mipmap_target_         = 0;
   }
 }
 
