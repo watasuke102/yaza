@@ -8,6 +8,7 @@
 #include <zwin-gles-v32-protocol.h>
 #include <zwin-protocol.h>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -111,10 +112,6 @@ void GlSampler::sync(bool force_sync) {
 
 void GlSampler::set_paramater(wl_resource* resource, ParamType type,
     uint32_t pname, std::variant<int32_t, float, wl_array*> param) {
-  const auto kSizeErr = [resource](size_t expect, size_t actual) {
-    wl_resource_post_error(resource, ZWN_COMPOSITOR_ERROR_WL_ARRAY_SIZE,
-        "expect: %ld, actual: %ld", (expect), (actual));
-  };
   {  // valiation block
     size_t expected_size = 0;
     try {
@@ -125,6 +122,10 @@ void GlSampler::set_paramater(wl_resource* resource, ParamType type,
       return;
     }
 
+    const auto kSizeErr = [resource](size_t expect, size_t actual) {
+      wl_resource_post_error(resource, ZWN_COMPOSITOR_ERROR_WL_ARRAY_SIZE,
+          "expect: %ld, actual: %ld", (expect), (actual));
+    };
     if (std::holds_alternative<wl_array*>(param)) {
       auto* array = std::get<wl_array*>(param);
       if (array->size != expected_size) {
@@ -149,27 +150,20 @@ void GlSampler::set_paramater(wl_resource* resource, ParamType type,
       .pname_   = pname,
       .param_   = 0,  // tmp
   };
-  bool failed = false;
   util::VisitorList(
-      [&pending](int32_t param) {
+      [&pending](int32_t& param) {
         pending.param_.emplace<int32_t>(param);
       },
-      [&pending](float param) {
+      [&pending](float& param) {
         pending.param_.emplace<float>(param);
       },
-      [&pending, &failed, &kSizeErr](wl_array* param) {
+      [&pending](wl_array*& param) {
         std::array<uint8_t, 16> data;
-        if (util::convert_wl_array(param, data.data())) {
-          pending.param_.emplace<std::array<uint8_t, 16>>(data);
-        } else {
-          failed = true;
-          kSizeErr(sizeof(float), param->size);
-        }
+        std::memcpy(data.data(), param->data, param->size);
+        pending.param_.emplace<std::array<uint8_t, 16>>(data);
       })
       .visit(param);
-  if (!failed) {
-    this->pending_.params_.insert_or_assign(pname, pending);
-  }
+  this->pending_.params_.insert_or_assign(pname, pending);
 }
 
 namespace {
