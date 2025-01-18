@@ -55,6 +55,7 @@ void TextureBindingList::emplace(uint32_t binding, const char* name,
   });
   this->list_.emplace_back(
       binding, name, target, std::move(texture), std::move(sampler));
+  this->changed_ = true;
 }
 
 void TextureBindingList::remove_expired() {
