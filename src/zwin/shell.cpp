@@ -2,13 +2,15 @@
 
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
+#include <wayland-server.h>
 #include <zwin-shell-protocol.h>
 
 #include <cstdint>
 
-#include "common.hpp"
 #include "server.hpp"
 #include "zwin/bounded.hpp"
+#include "zwin/expansive.hpp"
+#include "zwin/virtual_object.hpp"
 
 namespace yaza::zwin::shell {
 namespace {
@@ -25,11 +27,11 @@ void get_bounded(wl_client* client, wl_resource* resource, uint32_t id,
         bounded_resource, half_size, server->next_serial());
   }
 }
-void get_expansive(wl_client* client, wl_resource* /*resource*/,
-    uint32_t /*id*/, wl_resource* /*virtual_object*/) {
-  // TODO
-  wl_client_post_implementation_error(
-      client, "expansive app is not yet supported");
+void get_expansive(wl_client* client, wl_resource* /*resource*/, uint32_t id,
+    wl_resource* virtual_object_resource) {
+  auto* virtual_object = static_cast<virtual_object::VirtualObject*>(
+      wl_resource_get_user_data(virtual_object_resource));
+  expansive::create(client, id, virtual_object);
 }
 const struct zwn_shell_interface kImpl = {
     .destroy       = destroy,
