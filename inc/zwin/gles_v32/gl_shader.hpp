@@ -32,17 +32,13 @@ class GlShader {
     assert(this->proxy_.has_value());
     return this->proxy_->get()->id();
   }
-  void set_owner(util::WeakPtr<gl_program::GlProgram>&& owner) {
-    this->owner_ = std::move(owner);
-  }
 
  private:
   uint32_t                     type_;
   zwin::shm_buffer::ShmBuffer* buffer_;
 
-  util::WeakPtr<gl_program::GlProgram> owner_;
-  wl_resource*                         resource_;
-  util::Listener<std::nullptr_t*>      session_disconnected_listener_;
+  wl_resource*                    resource_;
+  util::Listener<std::nullptr_t*> session_disconnected_listener_;
   std::optional<std::unique_ptr<zen::remote::server::IGlShader>> proxy_ =
       std::nullopt;
 };

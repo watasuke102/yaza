@@ -13,7 +13,7 @@
 #include <optional>
 
 #include "remote/remote.hpp"
-#include "zwin/gles_v32/gl_program.hpp"
+#include "util/weakable_unique_ptr.hpp"
 #include "zwin/shm/shm_buffer.hpp"
 
 namespace yaza::zwin::gles_v32::gl_shader {
@@ -32,9 +32,6 @@ GlShader::~GlShader() {
   LOG_DEBUG("destructor: GlShader");
   wl_resource_set_user_data(this->resource_, nullptr);
   wl_resource_set_destructor(this->resource_, nullptr);
-  if (auto* owner = this->owner_.lock()) {
-    owner->remove_shader(this);
-  }
 }
 void GlShader::sync() {
   if (!this->proxy_.has_value()) {
@@ -55,7 +52,8 @@ const struct zwn_gl_shader_interface kImpl = {
 };  // namespace
 
 void destroy(wl_resource* resource) {
-  auto* self = static_cast<GlShader*>(wl_resource_get_user_data(resource));
+  auto* self =
+      static_cast<util::UniPtr<GlShader>*>(wl_resource_get_user_data(resource));
   delete self;
 }
 }  // namespace
@@ -67,8 +65,8 @@ void create(
     wl_client_post_no_memory(client);
     return;
   }
-  auto* self =
-      new GlShader(resource, zwin::shm_buffer::get_buffer(buffer), type);
+  auto* self = new util::UniPtr<GlShader>(
+      resource, zwin::shm_buffer::get_buffer(buffer), type);
   wl_resource_set_implementation(resource, &kImpl, self, destroy);
 }
 }  // namespace yaza::zwin::gles_v32::gl_shader

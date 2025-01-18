@@ -27,11 +27,6 @@ GlProgram::GlProgram(wl_resource* resource) : resource_(resource) {
 }
 GlProgram::~GlProgram() {
   LOG_DEBUG("destructor: GlProgram");
-  this->current_.shaders_.merge(this->pending_.shaders_);
-  for (auto* shader : this->current_.shaders_) {
-    shader->set_owner(util::WeakPtr<gl_program::GlProgram>());
-    delete shader;
-  }
 }
 
 void GlProgram::commit() {
@@ -47,7 +42,8 @@ void GlProgram::commit() {
     this->current_.should_link_ = true;
     this->current_.linked_      = true;
   }
-  this->current_.shaders_.merge(this->pending_.shaders_);
+  this->current_.shaders_.splice(
+      this->current_.shaders_.end(), this->pending_.shaders_);
   this->pending_.shaders_.clear();
   this->pending_.damaged_     = false;
   this->pending_.should_link_ = false;
@@ -59,11 +55,19 @@ void GlProgram::sync(bool force_sync) {
         remote::g_remote->channel_nonnull());
   }
   bool should_attach = force_sync || this->current_.should_link_;
-  for (auto* shader : this->current_.shaders_) {
+  // for (auto* shader : this->current_.shaders_) {
+  for (auto it = this->current_.shaders_.begin();
+      it != this->current_.shaders_.end();) {
+    auto* shader = it->lock();
+    if (!shader) {
+      it = this->current_.shaders_.erase(it);
+      continue;
+    }
     shader->sync();
     if (should_attach) {
       this->proxy_->get()->GlAttachShader(shader->remote_id());
     }
+    ++it;
   }
   if (!should_attach) {
     return;
@@ -76,13 +80,9 @@ void GlProgram::request_link() {
   this->pending_.damaged_     = true;
   this->pending_.should_link_ = true;
 }
-void GlProgram::attach_shader(gl_shader::GlShader* shader) {
+void GlProgram::attach_shader(util::WeakPtr<gl_shader::GlShader>&& shader) {
   this->pending_.damaged_ = true;
-  this->pending_.shaders_.emplace_back(shader);
-}
-void GlProgram::remove_shader(gl_shader::GlShader* shader) {
-  this->pending_.shaders_.remove(shader);
-  this->current_.shaders_.remove(shader);
+  this->pending_.shaders_.emplace_back(std::move(shader));
 }
 
 namespace {
@@ -93,10 +93,11 @@ void attach_shader(wl_client* /*client*/, wl_resource* resource,
     wl_resource* shader_resource) {
   auto* self = static_cast<util::UniPtr<GlProgram>*>(
       wl_resource_get_user_data(resource));
-  auto* shader = static_cast<gl_shader::GlShader*>(
+  auto* shader = static_cast<util::UniPtr<gl_shader::GlShader>*>(
       wl_resource_get_user_data(shader_resource));
-  (*self)->attach_shader(shader);
-  shader->set_owner((*self).weak());
+  if (shader->get()) {
+    (*self)->attach_shader((*shader).weak());
+  }
 }
 void link(wl_client* /*client*/, wl_resource* resource) {
   auto* self = static_cast<util::UniPtr<GlProgram>*>(

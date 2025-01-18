@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "common.hpp"
+#include "util/weakable_unique_ptr.hpp"
 #include "zwin/gles_v32/gl_shader.hpp"
 
 namespace yaza::zwin::gles_v32::gl_program {
@@ -24,19 +25,18 @@ class GlProgram {
   }
 
   void request_link();
-  void attach_shader(gl_shader::GlShader* shader);
-  void remove_shader(gl_shader::GlShader* shader);
+  void attach_shader(util::WeakPtr<gl_shader::GlShader>&& shader);
 
  private:
   struct {
-    bool                            damaged_     = false;
-    bool                            should_link_ = false;
-    std::list<gl_shader::GlShader*> shaders_;
+    bool                                          damaged_     = false;
+    bool                                          should_link_ = false;
+    std::list<util::WeakPtr<gl_shader::GlShader>> shaders_;
   } pending_;
   struct {
-    bool                            linked_      = false;
-    bool                            should_link_ = false;
-    std::list<gl_shader::GlShader*> shaders_;
+    bool                                          linked_      = false;
+    bool                                          should_link_ = false;
+    std::list<util::WeakPtr<gl_shader::GlShader>> shaders_;
   } current_;
   wl_resource* resource_;
 
