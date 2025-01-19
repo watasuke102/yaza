@@ -80,5 +80,4 @@ class WeakResource {
   wl_resource* resource_ = nullptr;
   wl_listener  resource_destroy_listener_;
 };
-
 }  // namespace yaza::util

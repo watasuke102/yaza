@@ -20,60 +20,6 @@ struct ShmBuffer {
 };
 
 namespace {
-/* This once_t is used to synchronize installing the SIGBUS handler
- * and creating the TLS key. This will be done in the first call
- * shm_buffer::begin_access which can happen from any thread */
-pthread_once_t   shm_sigbus_once = PTHREAD_ONCE_INIT;
-pthread_key_t    shm_sigbus_data_key;
-struct sigaction shm_old_sigbus_action;
-struct ShmSigbusData {
-  shm_pool::ShmPool* current_pool_;
-  int                access_count_;
-  int                fallback_mapping_used_;
-};
-void reraise_sigbus() {
-  /* If SIGBUS is raised for some other reason than accessing
-   * the pool then we'll uninstall the signal handler so we can
-   * reraise it. This would presumably kill the process */
-  sigaction(SIGBUS, &shm_old_sigbus_action, nullptr);
-  (void)std::raise(SIGBUS);
-}
-void handle_sigbus(int /*signum*/, siginfo_t* info, void* /*context*/) {
-  auto* sigbus_data =
-      static_cast<ShmSigbusData*>(pthread_getspecific(shm_sigbus_data_key));
-
-  if (sigbus_data == nullptr) {
-    reraise_sigbus();
-    return;
-  }
-
-  auto* pool = sigbus_data->current_pool_;
-  if (pool == nullptr || info->si_addr < pool->data_ ||
-      info->si_addr >= pool->data_ + pool->size_) {  // NOLINT
-    reraise_sigbus();
-    return;
-  }
-
-  sigbus_data->fallback_mapping_used_ = 1;
-
-  if (mmap(pool->data_, pool->size_, PROT_READ | PROT_WRITE,
-          MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS, 0, 0) == MAP_FAILED) {
-    reraise_sigbus();
-  }
-}
-void destroy_sigbus_data(void* data) {
-  auto* sigbus_data = static_cast<ShmSigbusData*>(data);
-  free(sigbus_data);
-}
-void init_sigbus_data_key() {
-  struct sigaction new_action;
-  new_action.sa_sigaction = handle_sigbus,
-  new_action.sa_flags     = SA_SIGINFO | SA_NODEFER,
-  sigemptyset(&new_action.sa_mask);
-  sigaction(SIGBUS, &new_action, &shm_old_sigbus_action);
-  pthread_key_create(&shm_sigbus_data_key, destroy_sigbus_data);
-}
-
 void destroy(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
 }
@@ -109,6 +55,64 @@ ShmBuffer* new_buffer(wl_client* client, uint32_t id, shm_pool::ShmPool* pool,
       buffer->resource_, &shm_buffer::kImpl, buffer, destroy_buffer);
   return buffer;
 }
+
+namespace {
+/* This once_t is used to synchronize installing the SIGBUS handler
+ * and creating the TLS key. This will be done in the first call
+ * shm_buffer::begin_access which can happen from any thread */
+pthread_once_t   shm_sigbus_once = PTHREAD_ONCE_INIT;
+pthread_key_t    shm_sigbus_data_key;
+struct sigaction shm_old_sigbus_action;
+struct ShmSigbusData {
+  shm_pool::ShmPool* current_pool_;
+  int                access_count_;
+  int                fallback_mapping_used_;
+};
+void reraise_sigbus() {
+  /* If SIGBUS is raised for some other reason than accessing
+   * the pool then we'll uninstall the signal handler so we can
+   * reraise it. This would presumably kill the process */
+  sigaction(SIGBUS, &shm_old_sigbus_action, nullptr);
+  (void)std::raise(SIGBUS);
+}
+void handle_sigbus(int /*signum*/, siginfo_t* info, void* /*context*/) {
+  auto* sigbus_data =
+      static_cast<ShmSigbusData*>(pthread_getspecific(shm_sigbus_data_key));
+
+  if (sigbus_data == nullptr) {
+    reraise_sigbus();
+    return;
+  }
+
+  auto* pool = sigbus_data->current_pool_;
+  if (pool == nullptr ||  //
+      static_cast<char*>(info->si_addr) < pool->data_ ||
+      static_cast<char*>(info->si_addr) >= pool->data_ + pool->size_)  // NOLINT
+  {
+    reraise_sigbus();
+    return;
+  }
+
+  sigbus_data->fallback_mapping_used_ = 1;
+
+  if (mmap(pool->data_, pool->size_, PROT_READ | PROT_WRITE,
+          MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS, 0, 0) == MAP_FAILED) {
+    reraise_sigbus();
+  }
+}
+void destroy_sigbus_data(void* data) {
+  auto* sigbus_data = static_cast<ShmSigbusData*>(data);
+  free(sigbus_data);
+}
+void init_sigbus_data_key() {
+  struct sigaction new_action;
+  new_action.sa_sigaction = handle_sigbus,
+  new_action.sa_flags     = SA_SIGINFO | SA_NODEFER,
+  sigemptyset(&new_action.sa_mask);
+  sigaction(SIGBUS, &new_action, &shm_old_sigbus_action);
+  pthread_key_create(&shm_sigbus_data_key, destroy_sigbus_data);
+}
+}  // namespace
 
 /**
  * Mark that the given SHM buffer is about to be accessed

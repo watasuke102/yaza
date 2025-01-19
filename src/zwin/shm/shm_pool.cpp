@@ -62,12 +62,9 @@ void create_buffer(wl_client* client, wl_resource* resource, uint32_t id,
     return;
   }
 
-  if (!shm_buffer::new_buffer(client, id, pool, size, offset)) {
-    unref(pool, false);
-    return;
+  if (shm_buffer::new_buffer(client, id, pool, size, offset)) {
+    pool->internal_refcount_++;
   }
-
-  pool->internal_refcount_++;
 }
 void resize(wl_client* /*client*/, wl_resource* resource, int32_t size) {
   auto* pool = static_cast<ShmPool*>(wl_resource_get_user_data(resource));
