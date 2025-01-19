@@ -41,8 +41,8 @@ void TextureBindingList::sync(
     texture->sync(force_sync);
     sampler->sync(force_sync);
     if (force_sync || this->changed_) {
-      proxy->BindTexture(binding.binding_, binding.name_, binding.target_,
-          texture->remote_id(), sampler->remote_id());
+      proxy->BindTexture(binding.binding_, binding.name_, texture->remote_id(),
+          binding.target_, sampler->remote_id());
     }
   }
 }

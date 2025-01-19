@@ -143,7 +143,7 @@ void GlSampler::set_paramater(wl_resource* resource, ParamType type,
         return;
       }
     }
-  }
+  }  // validation succeeded
   Parameter pending{
       .changed_ = true,
       .type_    = type,
