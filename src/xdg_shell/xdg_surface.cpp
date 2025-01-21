@@ -1,12 +1,27 @@
 #include "xdg_shell/xdg_surface.hpp"
 
 #include <wayland-server-protocol.h>
+#include <wayland-server.h>
 #include <xdg-shell-protocol.h>
 
-#include "common.hpp"
+#include "server.hpp"
 #include "xdg_shell/xdg_toplevel.hpp"
 
 namespace yaza::xdg_shell::xdg_surface {
+XdgSurface::XdgSurface(uint32_t id, wl_resource* resource,
+    wayland::surface::Surface* surface, Server* server)
+    : resource_(resource), id_(id) {
+  this->wl_surface_committed_listener_.set_handler(
+      [this, server](std::nullptr_t* /*data*/) {
+        xdg_surface_send_configure(this->resource_, server->next_serial());
+      });
+  surface->listen_committed(this->wl_surface_committed_listener_);
+  LOG_DEBUG("constructor: xdg_surface@%u", this->id_);
+}
+XdgSurface::~XdgSurface() {
+  LOG_DEBUG(" destructor: xdg_surface@%u", this->id_);
+}
+
 namespace {
 void destroy(wl_client* /* client */, wl_resource* resource) {
   wl_resource_destroy(resource);
@@ -35,16 +50,22 @@ const struct xdg_surface_interface kImpl = {
     .set_window_geometry = set_window_geometry,
     .ack_configure       = ack_configure,
 };
+
+void destroy(wl_resource* resource) {
+  auto* surface = static_cast<XdgSurface*>(wl_resource_get_user_data(resource));
+  delete surface;
+}
 }  // namespace
 
-void create(wl_client* client, int version, uint32_t id) {
+void create(wl_client* client, int version, uint32_t id,
+    wayland::surface::Surface* surface, Server* server) {
   wl_resource* resource =
       wl_resource_create(client, &xdg_surface_interface, version, id);
   if (resource == nullptr) {
     wl_client_post_no_memory(client);
     return;
   }
-  wl_resource_set_implementation(resource, &kImpl, nullptr, nullptr);
-  LOG_DEBUG("xdg surface is created (client: %p, id: %u)", (void*)client, id);
+  auto* xdg_surface = new XdgSurface(id, resource, surface, server);
+  wl_resource_set_implementation(resource, &kImpl, xdg_surface, destroy);
 }
 }  // namespace yaza::xdg_shell::xdg_surface

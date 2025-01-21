@@ -1,5 +1,6 @@
 #pragma once
 
+#include <wayland-server-core.h>
 #include <zen-remote/server/buffer.h>
 
 #include <cstring>
@@ -30,6 +31,17 @@ class DataPool {
     zwin::shm_buffer::begin_access(buffer);
     std::memcpy(this->data_.get(), data_ptr, this->size_);
     zwin::shm_buffer::end_access(buffer);
+  }
+
+  void from_wl_shm_buffer(wl_shm_buffer* buffer) {
+    this->size_ = static_cast<ssize_t>(wl_shm_buffer_get_stride(buffer)) *
+                  wl_shm_buffer_get_height(buffer);
+    this->data_    = std::shared_ptr<void>(malloc(this->size_), free);
+    auto* data_ptr = wl_shm_buffer_get_data(buffer);
+
+    wl_shm_buffer_begin_access(buffer);
+    std::memcpy(this->data_.get(), data_ptr, this->size_);
+    wl_shm_buffer_end_access(buffer);
   }
 
   std::unique_ptr<zen::remote::server::IBuffer> create_buffer(

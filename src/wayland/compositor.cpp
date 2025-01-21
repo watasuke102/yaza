@@ -11,14 +11,12 @@
 
 namespace yaza::wayland::compositor {
 namespace {
-void create_surface(
-    struct wl_client* client, struct wl_resource* resource, uint32_t id) {
+void create_surface(wl_client* client, wl_resource* resource, uint32_t id) {
   LOG_DEBUG("create surface from client %p (id=%u)", (void*)client, id);
-  surface::create(client, resource, id);
+  surface::create(client, wl_resource_get_version(resource), id);
 }
 
-void create_region(
-    struct wl_client* client, struct wl_resource* /*resource*/, uint32_t id) {
+void create_region(wl_client* client, wl_resource* /*resource*/, uint32_t id) {
   LOG_DEBUG("create region from client %p (id=%u)", (void*)client, id);
   region::create(client, id);
 }

@@ -1,7 +1,9 @@
 
+#include <wayland-server-core.h>
 #include <xdg-shell-protocol.h>
 
 #include "server.hpp"
+#include "wayland/surface.hpp"
 #include "xdg_shell/xdg_surface.hpp"
 
 namespace yaza::xdg_shell::xdg_wm_base {
@@ -14,8 +16,12 @@ void create_positioner(
   // TODO
 }
 void get_xdg_surface(wl_client* client, wl_resource* resource, uint32_t id,
-    wl_resource* /*surface_resource*/) {
-  xdg_surface::create(client, wl_resource_get_version(resource), id);
+    wl_resource* surface_resource) {
+  auto* server  = static_cast<Server*>(wl_resource_get_user_data(resource));
+  auto* surface = static_cast<wayland::surface::Surface*>(
+      wl_resource_get_user_data(surface_resource));
+  xdg_surface::create(
+      client, wl_resource_get_version(resource), id, surface, server);
 }
 void pong(
     wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*serial*/) {
