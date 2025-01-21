@@ -1,6 +1,9 @@
 .cache/
+.cxx/
+.gradle
 build/
 build-android/
 3rdparty/
 
 local.cmake
+local.properties
