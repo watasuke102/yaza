@@ -32,7 +32,6 @@ class VirtualObject {
   void add_rendering_unit(gles_v32::rendering_unit::RenderingUnit* unit);
   void remove_rendering_unit(gles_v32::rendering_unit::RenderingUnit* unit);
   void queue_frame_callback(wl_resource* callback_resource) const;
-  void send_frame_done();
 
   void listen_commited(util::Listener<std::nullptr_t*>& listener);
 

@@ -15,6 +15,7 @@
 #include "common.hpp"
 #include "remote/remote.hpp"
 #include "remote/session.hpp"
+#include "util/time.hpp"
 
 namespace yaza::zwin::virtual_object {
 VirtualObject::VirtualObject() {
@@ -36,7 +37,14 @@ VirtualObject::VirtualObject() {
       this->session_disconnected_listener_);
 
   this->session_frame_listener_.set_handler([this](std::nullptr_t* /*data*/) {
-    this->send_frame_done();
+    auto         now_msec = util::now_msec();
+    wl_resource* callback = nullptr;
+    wl_resource* tmp      = nullptr;
+    wl_resource_for_each_safe(
+        callback, tmp, &this->current_.frame_callback_list_) {
+      wl_callback_send_done(callback, now_msec);
+      wl_resource_destroy(callback);
+    }
   });
   remote::g_remote->listen_session_frame(this->session_frame_listener_);
 
@@ -66,6 +74,9 @@ void VirtualObject::commit() {
   }
 }
 
+// FIXME: give `channel` to all child `sync()` API
+// so that callee will not use `channel_nonnull()`
+/// The top level of call tree that sync data by zen-remote
 void VirtualObject::sync(bool force_sync) {
   LOG_DEBUG(
       "sync: VirtualObject (force_sync=%s)", force_sync ? "true" : "false");
@@ -98,24 +109,6 @@ void VirtualObject::remove_rendering_unit(
 void VirtualObject::queue_frame_callback(wl_resource* callback_resource) const {
   wl_list_insert(this->pending_.frame_callback_list_.prev,
       wl_resource_get_link(callback_resource));
-}
-void VirtualObject::send_frame_done() {
-  timespec ts;
-  if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1) {
-    return;
-  }
-  // NOLINTBEGIN(readability-magic-numbers)
-  int64_t now_msec =
-      (static_cast<int64_t>(ts.tv_sec) * 1000) + (ts.tv_nsec / 1'000'000);
-  // NOLINTEND(readability-magic-numbers)
-
-  wl_resource* resource = nullptr;
-  wl_resource* tmp      = nullptr;
-  wl_resource_for_each_safe(
-      resource, tmp, &this->current_.frame_callback_list_) {
-    wl_callback_send_done(resource, now_msec);
-    wl_resource_destroy(resource);
-  }
 }
 
 void VirtualObject::listen_commited(util::Listener<std::nullptr_t*>& listener) {
