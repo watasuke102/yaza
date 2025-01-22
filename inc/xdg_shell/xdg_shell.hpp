@@ -2,9 +2,7 @@
 
 #include <wayland-server-core.h>
 
-#include "server.hpp"
-
 namespace yaza::xdg_shell {
 /// return false if fails
-bool init(wl_display* display, Server* server);
+bool init(wl_display* display);
 }  // namespace yaza::xdg_shell

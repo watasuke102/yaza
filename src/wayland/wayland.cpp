@@ -4,9 +4,9 @@
 #include "wayland/compositor.hpp"
 
 namespace yaza::wayland {
-bool init(wl_display* display, Server* server) {
+bool init(wl_display* display) {
   // NOLINTNEXTLINE(readability-magic-numbers)
-  if (!wl_global_create(display, &wl_compositor_interface, 5, server,
+  if (!wl_global_create(display, &wl_compositor_interface, 5, nullptr,
           wayland::compositor::bind)) {
     LOG_ERR("Failed to create global (compositor)");
     return false;

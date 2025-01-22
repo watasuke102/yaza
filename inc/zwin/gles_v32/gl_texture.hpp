@@ -27,7 +27,7 @@ struct Image2dData {
 class GlTexture {
  public:
   DISABLE_MOVE_AND_COPY(GlTexture);
-  explicit GlTexture(wl_event_loop* loop);
+  GlTexture();
   ~GlTexture();
 
   void     commit();
@@ -54,11 +54,10 @@ class GlTexture {
     bool           mipmap_target_changed_ = false;
   } current_;
 
-  wl_event_loop*                  loop_;
   util::Listener<std::nullptr_t*> session_disconnected_listener_;
   std::optional<std::unique_ptr<zen::remote::server::IGlTexture>> proxy_ =
       std::nullopt;
 };
 
-void create(wl_client* client, uint32_t id, wl_event_loop* loop);
+void create(wl_client* client, uint32_t id);
 }  // namespace yaza::zwin::gles_v32::gl_texture

@@ -5,18 +5,32 @@
 #include <cstdlib>
 #include <exception>
 #include <stdexcept>
+#include <vector>
 
 #include "common.hpp"
 #include "server.hpp"
 
+namespace {
+yaza::server::Server* g_server;
+}
+namespace yaza::server {
+uint32_t next_serial() {
+  return g_server->next_serial();
+}
+wl_event_loop* loop() {
+  return g_server->loop();
+}
+}  // namespace yaza::server
+
 int main() {
   try {
     {
-      yaza::Server server;
-      if (server.is_creation_failed()) {
+      g_server = new yaza::server::Server();
+      if (g_server->is_creation_failed()) {
         throw std::runtime_error("Failed to create server; aborting");
       }
-      server.start();
+      g_server->start();
+      delete g_server;
     }
     LOG_INFO("Exiting gracefully");
     return EXIT_SUCCESS;

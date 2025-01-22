@@ -16,10 +16,11 @@
 
 #include "common.hpp"
 #include "remote/remote.hpp"
+#include "server.hpp"
 #include "util/weakable_unique_ptr.hpp"
 
 namespace yaza::zwin::gles_v32::gl_texture {
-GlTexture::GlTexture(wl_event_loop* loop) : loop_(loop) {
+GlTexture::GlTexture() {
   this->session_disconnected_listener_.set_handler(
       [this](std::nullptr_t* /*data*/) {
         this->proxy_ = std::nullopt;
@@ -63,8 +64,7 @@ void GlTexture::sync(bool force_sync) {
         this->current_.image_2d_.internal_format_,
         this->current_.image_2d_.width_, this->current_.image_2d_.height_,
         this->current_.image_2d_.border_, this->current_.image_2d_.format_,
-        this->current_.image_2d_.type_,
-        this->current_.data_.create_buffer(this->loop_));
+        this->current_.image_2d_.type_, this->current_.data_.create_buffer());
     this->current_.data_changed_ = false;
   }
   if (force_sync || this->current_.mipmap_target_changed_) {
@@ -119,14 +119,14 @@ void destroy(wl_resource* resource) {
   delete self;
 }
 }  // namespace
-void create(wl_client* client, uint32_t id, wl_event_loop* loop) {
+void create(wl_client* client, uint32_t id) {
   wl_resource* resource =
       wl_resource_create(client, &zwn_gl_texture_interface, 1, id);
   if (!resource) {
     wl_client_post_no_memory(client);
     return;
   }
-  auto* self = new util::UniPtr<GlTexture>(loop);
+  auto* self = new util::UniPtr<GlTexture>();
   wl_resource_set_implementation(resource, &kImpl, self, destroy);
 }
 }  // namespace yaza::zwin::gles_v32::gl_texture

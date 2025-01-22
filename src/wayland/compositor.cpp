@@ -27,15 +27,13 @@ const struct wl_compositor_interface kImpl = {
 };
 }  // namespace
 
-void bind(wl_client* client, void* data, uint32_t version, uint32_t id) {
-  auto* server = static_cast<yaza::Server*>(data);
-
+void bind(wl_client* client, void* /*data*/, uint32_t version, uint32_t id) {
   wl_resource* resource = wl_resource_create(
       client, &wl_compositor_interface, static_cast<int>(version), id);
   if (resource == nullptr) {
     wl_client_post_no_memory(client);
     return;
   }
-  wl_resource_set_implementation(resource, &kImpl, server, nullptr);
+  wl_resource_set_implementation(resource, &kImpl, nullptr, nullptr);
 }
 }  // namespace yaza::wayland::compositor

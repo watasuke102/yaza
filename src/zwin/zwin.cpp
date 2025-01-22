@@ -12,29 +12,29 @@
 #include "zwin/shm/shm.hpp"
 
 namespace yaza::zwin {
-bool init(wl_display* display, Server* server) {
-  if (!wl_global_create(display, &zwn_compositor_interface, 1, server,
+bool init(wl_display* display) {
+  if (!wl_global_create(display, &zwn_compositor_interface, 1, nullptr,
           zwin::compositor::bind)) {
     LOG_ERR("Failed to create global (zwin_compositor)");
     return false;
   }
   if (!wl_global_create(
-          display, &zwn_seat_interface, 1, server, zwin::seat::bind)) {
+          display, &zwn_seat_interface, 1, nullptr, zwin::seat::bind)) {
     LOG_ERR("Failed to create global (zwin_seat)");
     return false;
   }
   if (!wl_global_create(
-          display, &zwn_shell_interface, 1, server, zwin::shell::bind)) {
+          display, &zwn_shell_interface, 1, nullptr, zwin::shell::bind)) {
     LOG_ERR("Failed to create global (zwin_shell)");
     return false;
   }
   if (!wl_global_create(
-          display, &zwn_shm_interface, 1, server, zwin::shm::bind)) {
+          display, &zwn_shm_interface, 1, nullptr, zwin::shm::bind)) {
     LOG_ERR("Failed to create global (zwin_shm)");
     return false;
   }
   if (!wl_global_create(
-          display, &zwn_gles_v32_interface, 1, server, zwin::gles_v32::bind)) {
+          display, &zwn_gles_v32_interface, 1, nullptr, zwin::gles_v32::bind)) {
     LOG_ERR("Failed to create global (zwin_gles_v32)");
     return false;
   }

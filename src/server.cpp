@@ -13,7 +13,7 @@
 #include "xdg_shell/xdg_shell.hpp"
 #include "zwin/zwin.hpp"
 
-namespace yaza {
+namespace yaza::server {
 namespace {
 int handle_signal(int /*signum*/, void* data) {
   auto* display = static_cast<wl_display*>(data);
@@ -39,13 +39,13 @@ Server::Server() {
 
   remote::init(this->loop());
 
-  if (!wayland::init(this->wl_display_, this)) {
+  if (!wayland::init(this->wl_display_)) {
     BAIL(nullptr);
   }
-  if (!xdg_shell::init(this->wl_display_, this)) {
+  if (!xdg_shell::init(this->wl_display_)) {
     BAIL(nullptr);
   }
-  if (!zwin::init(this->wl_display_, this)) {
+  if (!zwin::init(this->wl_display_)) {
     BAIL(nullptr);
   }
 
@@ -101,4 +101,4 @@ uint32_t Server::next_serial() {
 wl_event_loop* Server::loop() {
   return wl_display_get_event_loop(this->wl_display_);
 }
-}  // namespace yaza
+}  // namespace yaza::server

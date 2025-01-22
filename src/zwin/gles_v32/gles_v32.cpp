@@ -6,7 +6,6 @@
 
 #include <cstdint>
 
-#include "server.hpp"
 #include "zwin/gles_v32/gl_base_technique.hpp"
 #include "zwin/gles_v32/gl_buffer.hpp"
 #include "zwin/gles_v32/gl_program.hpp"
@@ -28,10 +27,9 @@ void create_rendering_unit(wl_client* client, wl_resource* /*resource*/,
       wl_resource_get_user_data(virtual_object_resource));
   rendering_unit::create(client, id, virtual_object);
 }
-void create_gl_buffer(wl_client* client, wl_resource* resource, uint32_t id) {
-  auto* server =
-      static_cast<yaza::Server*>(wl_resource_get_user_data(resource));
-  gl_buffer::create(client, id, server->loop());
+void create_gl_buffer(
+    wl_client* client, wl_resource* /*resource*/, uint32_t id) {
+  gl_buffer::create(client, id);
 }
 void create_gl_shader(wl_client* client, wl_resource* /*resource*/, uint32_t id,
     wl_resource* buffer, uint32_t type) {
@@ -41,10 +39,9 @@ void create_gl_program(
     wl_client* client, wl_resource* /*resource*/, uint32_t id) {
   gl_program::create(client, id);
 }
-void create_gl_texture(wl_client* client, wl_resource* resource, uint32_t id) {
-  auto* server =
-      static_cast<yaza::Server*>(wl_resource_get_user_data(resource));
-  gl_texture::create(client, id, server->loop());
+void create_gl_texture(
+    wl_client* client, wl_resource* /*resource*/, uint32_t id) {
+  gl_texture::create(client, id);
 }
 void create_gl_sampler(
     wl_client* client, wl_resource* /*resource*/, uint32_t id) {
@@ -77,15 +74,13 @@ const struct zwn_gles_v32_interface kImpl = {
 };
 }  // namespace
 
-void bind(wl_client* client, void* data, uint32_t version, uint32_t id) {
-  auto* server = static_cast<yaza::Server*>(data);
-
+void bind(wl_client* client, void* /*data*/, uint32_t version, uint32_t id) {
   wl_resource* resource = wl_resource_create(
       client, &zwn_gles_v32_interface, static_cast<int>(version), id);
   if (resource == nullptr) {
     wl_client_post_no_memory(client);
     return;
   }
-  wl_resource_set_implementation(resource, &kImpl, server, nullptr);
+  wl_resource_set_implementation(resource, &kImpl, nullptr, nullptr);
 }
 }  // namespace yaza::zwin::gles_v32

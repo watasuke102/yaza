@@ -8,7 +8,7 @@
 
 #include "common.hpp"
 
-namespace yaza {
+namespace yaza::server {
 class Server {
  public:
   DISABLE_MOVE_AND_COPY(Server);
@@ -32,4 +32,7 @@ class Server {
   wl_event_source* sigquit_source_ = nullptr;
   wl_event_source* sigint_source_  = nullptr;
 };
-}  // namespace yaza
+
+uint32_t       next_serial();
+wl_event_loop* loop();
+}  // namespace yaza::server

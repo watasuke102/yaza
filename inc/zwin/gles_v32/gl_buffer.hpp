@@ -15,7 +15,7 @@ namespace yaza::zwin::gles_v32::gl_buffer {
 class GlBuffer {
  public:
   DISABLE_MOVE_AND_COPY(GlBuffer);
-  explicit GlBuffer(wl_event_loop* loop);
+  GlBuffer();
   ~GlBuffer();
 
   void commit();
@@ -41,11 +41,10 @@ class GlBuffer {
     ssize_t        data_size_;
   } current_;
 
-  wl_event_loop*                  loop_;
   util::Listener<std::nullptr_t*> session_disconnected_listener_;
   std::optional<std::unique_ptr<zen::remote::server::IGlBuffer>> proxy_ =
       std::nullopt;
 };
 
-void create(wl_client* client, uint32_t id, wl_event_loop* loop);
+void create(wl_client* client, uint32_t id);
 }  // namespace yaza::zwin::gles_v32::gl_buffer

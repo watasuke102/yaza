@@ -5,7 +5,6 @@
 
 #include <cstddef>
 
-#include "server.hpp"
 #include "util/signal.hpp"
 #include "wayland/surface.hpp"
 
@@ -13,8 +12,8 @@ namespace yaza::xdg_shell::xdg_surface {
 class XdgSurface {
  public:
   DISABLE_MOVE_AND_COPY(XdgSurface);
-  XdgSurface(uint32_t id, wl_resource* resource,
-      wayland::surface::Surface* surface, Server* server);
+  XdgSurface(
+      uint32_t id, wl_resource* resource, wayland::surface::Surface* surface);
   ~XdgSurface();
 
  private:
@@ -24,5 +23,5 @@ class XdgSurface {
 };
 
 void create(wl_client* client, int version, uint32_t id,
-    wayland::surface::Surface* surface, Server* server);
+    wayland::surface::Surface* surface);
 }  // namespace yaza::xdg_shell::xdg_surface

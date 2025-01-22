@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "remote/loop.hpp"
+#include "server.hpp"
 #include "weak_resource.hpp"
 
 namespace yaza::util {
@@ -44,15 +45,14 @@ class DataPool {
     wl_shm_buffer_end_access(buffer);
   }
 
-  std::unique_ptr<zen::remote::server::IBuffer> create_buffer(
-      wl_event_loop* loop) {
+  std::unique_ptr<zen::remote::server::IBuffer> create_buffer() {
     auto data(this->data_);
     return zen::remote::server::CreateBuffer(
         data.get(),
         [data = std::move(data)]() mutable {
           data.reset();
         },
-        std::make_unique<remote::Loop>(loop));
+        std::make_unique<remote::Loop>(server::loop()));
   }
 
   [[nodiscard]] ssize_t size() const {
