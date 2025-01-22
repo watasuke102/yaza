@@ -85,9 +85,9 @@ void Surface::commit() {
     if (this->texture_.has_data()) {
       this->texture_.reset();
     }
-    wl_shm_buffer* shm_buffer =
-        wl_shm_buffer_get(this->pending_.buffer_.value());
-    auto format = wl_shm_buffer_get_format(shm_buffer);
+    auto*          buffer     = this->pending_.buffer_.value();
+    wl_shm_buffer* shm_buffer = wl_shm_buffer_get(buffer);
+    auto           format     = wl_shm_buffer_get_format(shm_buffer);
     if (format == WL_SHM_FORMAT_ARGB8888 || format == WL_SHM_FORMAT_XRGB8888) {
       this->texture_.read_wl_surface_texture(shm_buffer);
       this->tex_width_  = wl_shm_buffer_get_width(shm_buffer);
@@ -95,6 +95,7 @@ void Surface::commit() {
     } else {
       LOG_ERR("yaza does not support surface buffer format (%u)", format);
     }
+    wl_buffer_send_release(buffer);
     this->pending_.buffer_ = std::nullopt;
   }
 
