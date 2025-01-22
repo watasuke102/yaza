@@ -5,9 +5,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 
 #include "common.hpp"
+#include "remote/session.hpp"
+#include "renderer.hpp"
 #include "util/data_pool.hpp"
 #include "util/signal.hpp"
 
@@ -33,9 +36,17 @@ class Surface {
     std::optional<wl_resource*> buffer_   = std::nullopt;
     std::optional<wl_resource*> callback_ = std::nullopt;
   } pending_;
-  util::DataPool texture_;
 
-  uint32_t id_;
+  util::DataPool texture_;
+  uint32_t       tex_width_;
+  uint32_t       tex_height_;
+
+  std::unique_ptr<Renderer> renderer_;
+  void                      init_renderer();
+
+  util::Listener<remote::Session*> session_established_listener_;
+  util::Listener<std::nullptr_t*>  session_disconnected_listener_;
+  uint32_t                         id_;
 };
 
 void create(wl_client* client, int version, uint32_t id);

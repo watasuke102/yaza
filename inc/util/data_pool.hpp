@@ -45,6 +45,12 @@ class DataPool {
     wl_shm_buffer_end_access(buffer);
   }
 
+  void from_ptr(const void* data, ssize_t size) {
+    this->size_ = size;
+    this->data_ = std::shared_ptr<void>(malloc(this->size_), free);
+    std::memcpy(this->data_.get(), data, this->size_);
+  }
+
   std::unique_ptr<zen::remote::server::IBuffer> create_buffer() {
     auto data(this->data_);
     return zen::remote::server::CreateBuffer(

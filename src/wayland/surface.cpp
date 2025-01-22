@@ -1,21 +1,66 @@
 #include "wayland/surface.hpp"
 
+#include <GLES3/gl32.h>
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
 #include <wayland-server.h>
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 
 #include "common.hpp"
+#include "remote/remote.hpp"
+#include "remote/session.hpp"
+#include "renderer.hpp"
 #include "util/time.hpp"
 
 namespace yaza::wayland::surface {
 Surface::Surface(uint32_t id) : id_(id) {
+  if (remote::g_remote->has_session()) {
+    this->init_renderer();
+  }
+  this->session_established_listener_.set_handler(
+      [this](remote::Session* /*session*/) {
+        this->init_renderer();
+      });
+  remote::g_remote->listen_session_established(
+      this->session_established_listener_);
+
+  this->session_disconnected_listener_.set_handler(
+      [this](std::nullptr_t* /*data*/) {
+        this->renderer_ = nullptr;
+      });
+  remote::g_remote->listen_session_disconnected(
+      this->session_disconnected_listener_);
+
   LOG_DEBUG("constructor: wl_surface@%u", this->id_);
 }
 Surface::~Surface() {
   LOG_DEBUG(" destructor: wl_surface@%u", this->id_);
+}
+void Surface::init_renderer() {
+  this->renderer_       = std::make_unique<Renderer>();
+  constexpr float kSize = 0.3F;
+  this->renderer_->set_vertex(std::vector<BufferElement>{
+      /*
+        3 -- 0
+        |    |
+        2 -- 1
+        `v` is reversed?
+        */
+      {.x_ = +kSize, .y_ = +kSize, .z_ = -0.F, .u_ = 1.F, .v_ = 0.F},
+      {.x_ = +kSize, .y_ = -kSize, .z_ = -0.F, .u_ = 1.F, .v_ = 1.F},
+      {.x_ = -kSize, .y_ = -kSize, .z_ = -0.F, .u_ = 0.F, .v_ = 1.F},
+      {.x_ = -kSize, .y_ = +kSize, .z_ = -0.F, .u_ = 0.F, .v_ = 0.F},
+  });
+  this->renderer_->request_draw_arrays(GL_TRIANGLE_FAN, 0, 4);
+
+  if (this->texture_.has_data()) {
+    this->renderer_->set_texture(
+        this->texture_, this->tex_width_, this->tex_height_);
+    this->renderer_->commit();
+  }
 }
 
 void Surface::attach(wl_resource* buffer, int32_t /*sx*/, int32_t /*sy*/) {
@@ -45,6 +90,8 @@ void Surface::commit() {
     auto format = wl_shm_buffer_get_format(shm_buffer);
     if (format == WL_SHM_FORMAT_ARGB8888 || format == WL_SHM_FORMAT_XRGB8888) {
       this->texture_.from_wl_shm_buffer(shm_buffer);
+      this->tex_width_  = wl_shm_buffer_get_width(shm_buffer);
+      this->tex_height_ = wl_shm_buffer_get_height(shm_buffer);
     } else {
       LOG_ERR("yaza does not support surface buffer format (%u)", format);
     }
@@ -56,6 +103,12 @@ void Surface::commit() {
     wl_callback_send_done(callback, util::now_msec());
     wl_resource_destroy(callback);
     this->pending_.callback_ = std::nullopt;
+  }
+
+  if (this->renderer_ != nullptr && this->texture_.has_data()) {
+    this->renderer_->set_texture(
+        this->texture_, this->tex_width_, this->tex_height_);
+    this->renderer_->commit();
   }
 
   this->events_.committed_.emit(nullptr);
