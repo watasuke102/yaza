@@ -89,7 +89,7 @@ void Surface::commit() {
         wl_shm_buffer_get(this->pending_.buffer_.value());
     auto format = wl_shm_buffer_get_format(shm_buffer);
     if (format == WL_SHM_FORMAT_ARGB8888 || format == WL_SHM_FORMAT_XRGB8888) {
-      this->texture_.from_wl_shm_buffer(shm_buffer);
+      this->texture_.read_wl_surface_texture(shm_buffer);
       this->tex_width_  = wl_shm_buffer_get_width(shm_buffer);
       this->tex_height_ = wl_shm_buffer_get_height(shm_buffer);
     } else {

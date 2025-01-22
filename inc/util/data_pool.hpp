@@ -34,14 +34,27 @@ class DataPool {
     zwin::shm_buffer::end_access(buffer);
   }
 
-  void from_wl_shm_buffer(wl_shm_buffer* buffer) {
+  /// read wl_shm_buffer attached to wl_surface, convert RGBA format and store
+  void read_wl_surface_texture(wl_shm_buffer* buffer) {
     this->size_ = static_cast<ssize_t>(wl_shm_buffer_get_stride(buffer)) *
                   wl_shm_buffer_get_height(buffer);
-    this->data_    = std::shared_ptr<void>(malloc(this->size_), free);
-    auto* data_ptr = wl_shm_buffer_get_data(buffer);
+    this->data_ = std::shared_ptr<void>(malloc(this->size_), free);
+    auto* src   = static_cast<uint8_t*>(wl_shm_buffer_get_data(buffer));
+    auto* dst   = static_cast<uint8_t*>(this->data_.get());
 
+    // format of wl_shm_buffer matches /WL_SHM_FORMAT_[AX]RGB8888/
+    // it is expressed in little-endian, so:
+    // Wayland: B. G, R, A
+    // OpenGL : R, G, B, A (GL_RGBA is specified in Renderer::set_texture)
     wl_shm_buffer_begin_access(buffer);
-    std::memcpy(this->data_.get(), data_ptr, this->size_);
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    for (int i = 0; i < this->size_; i += 4) {
+      dst[i + 0] = src[i + 2];  // R
+      dst[i + 1] = src[i + 1];  // G
+      dst[i + 2] = src[i + 0];  // B
+      dst[i + 3] = src[i + 3];  // A
+    }
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     wl_shm_buffer_end_access(buffer);
   }
 

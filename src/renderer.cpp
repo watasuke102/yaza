@@ -10,7 +10,6 @@
 #include <glm/ext/vector_float3.hpp>
 #include <memory>
 
-#include "common.hpp"
 #include "remote/remote.hpp"
 
 namespace yaza {
