@@ -40,3 +40,5 @@ template <typename T>
 inline T zalloc(size_t size) {
   return static_cast<T>(calloc(1, size));
 }
+
+#define GLSL(s) (const char*)"#version 320 es\nprecision mediump float;\n" #s

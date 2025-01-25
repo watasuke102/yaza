@@ -16,6 +16,31 @@
 #include "util/time.hpp"
 
 namespace yaza::wayland::surface {
+namespace {
+// clang-format off
+constexpr auto* kVertShader = GLSL(
+  uniform mat4 zMVP;
+  layout(location = 0) in vec3 pos;
+  layout(location = 1) in vec2 vertex_uv;
+
+  out vec2 uv;
+
+  void main() {
+    gl_Position = zMVP * vec4(pos, 1.0);
+    uv          = vertex_uv;
+  }
+);
+constexpr auto* kFragShader = GLSL(
+  uniform sampler2D texture;
+  in  vec2 uv;
+  out vec4 color;
+
+  void main() {
+    color = texture(texture, uv);
+  }
+);
+// clang-format on
+}  // namespace
 Surface::Surface(uint32_t id) : id_(id) {
   if (remote::g_remote->has_session()) {
     this->init_renderer();
@@ -40,8 +65,9 @@ Surface::~Surface() {
   LOG_DEBUG(" destructor: wl_surface@%u", this->id_);
 }
 void Surface::init_renderer() {
-  this->renderer_       = std::make_unique<Renderer>();
+  this->renderer_       = std::make_unique<Renderer>(kVertShader, kFragShader);
   constexpr float kSize = 0.3F;
+  this->renderer_->move_abs(0.F, 1.F, -1.8F);
   this->renderer_->set_vertex(std::vector<BufferElement>{
       /*
         3 -- 0

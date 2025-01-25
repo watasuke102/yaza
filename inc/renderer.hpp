@@ -10,10 +10,11 @@
 #include <zen-remote/server/rendering-unit.h>
 #include <zen-remote/server/virtual-object.h>
 
+#include <glm/ext/quaternion_float.hpp>
+#include <glm/ext/vector_float3.hpp>
 #include <vector>
 
 #include "common.hpp"
-#include "remote/session.hpp"
 #include "util/data_pool.hpp"
 
 namespace yaza {
@@ -27,15 +28,20 @@ struct BufferElement {
 class Renderer {
  public:
   DISABLE_MOVE_AND_COPY(Renderer);
-  Renderer();
+  Renderer(const char* vert_shader, const char* frag_shader);
   ~Renderer() = default;
 
+  // TODO: rotate function
+  void move_abs(float x, float y, float z);
   void set_vertex(const std::vector<BufferElement>& buffer);
   void set_texture(util::DataPool& texture, uint32_t width, uint32_t height);
   void request_draw_arrays(uint32_t mode, int32_t first, uint32_t count);
   void commit();
 
  private:
+  glm::vec3 pos_;
+  glm::quat rot_;
+
   std::unique_ptr<zen::remote::server::IVirtualObject>   virtual_object_;
   std::unique_ptr<zen::remote::server::IRenderingUnit>   rendering_unit_;
   std::unique_ptr<zen::remote::server::IGlBaseTechnique> technique_;
