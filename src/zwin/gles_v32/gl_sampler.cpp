@@ -70,7 +70,7 @@ void GlSampler::sync(bool force_sync) {
     if (!force_sync && !param.changed_) {
       continue;
     }
-    // NOLINTBEGIN(readability-magic-numbers,google-readability-casting)
+    // NOLINTBEGIN(google-readability-casting)
     switch (param.type_) {
       case ParamType::F: {
         auto value = std::get<float>(param.param_);
@@ -106,7 +106,7 @@ void GlSampler::sync(bool force_sync) {
         break;
       }
     }
-    // NOLINTEND(readability-magic-numbers,google-readability-casting)
+    // NOLINTEND(rgoogle-readability-casting)
   }
 }
 

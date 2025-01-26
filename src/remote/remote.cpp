@@ -44,7 +44,6 @@ class LogSink : public zen::remote::ILogSink {
   }
 };
 
-// NOLINTNEXTLINE(readability-magic-numbers)
 constexpr uint64_t kRefreshIntervalNsec = 1'000'000'000.F / 60.F /*FPS*/;
 constexpr int      kNsecPerMsec         = 1'000'000;
 }  // namespace

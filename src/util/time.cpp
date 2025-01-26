@@ -9,7 +9,6 @@ int64_t now_msec() {
   if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1) {
     return -1;
   }
-  // NOLINTNEXTLINE(readability-magic-numbers)
   return (static_cast<int64_t>(ts.tv_sec) * 1000) + (ts.tv_nsec / 1'000'000);
 }
 
