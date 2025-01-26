@@ -11,11 +11,13 @@
 #include <glm/ext/quaternion_trigonometric.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/geometric.hpp>
+#include <memory>
 #include <vector>
 
 #include "common.hpp"
 #include "remote/remote.hpp"
 #include "renderer.hpp"
+#include "wayland/seat/input_listen_server.hpp"
 #include "wayland/seat/pointer.hpp"
 
 namespace yaza::wayland::seat {
@@ -59,6 +61,7 @@ Seat::Seat()
       });
   remote::g_remote->listen_session_disconnected(
       this->session_disconnected_listener_);
+  this->input_listen_server_ = std::make_unique<InputListenServer>(this);
 }
 
 /*
@@ -91,6 +94,14 @@ void Seat::update_ray_vertices() {
   this->ray_vertices_[1].z_ =
       r * sin(this->pointing_.polar_) * cos(this->pointing_.azimuthal_);
   this->ray_renderer_->set_vertex(this->ray_vertices_);
+}
+void Seat::move_rel_pointing(float polar, float azimuthal) {
+  this->pointing_.polar_ += polar;
+  this->pointing_.azimuthal_ += azimuthal;
+  if (this->ray_renderer_) {
+    this->update_ray_vertices();
+    this->ray_renderer_->commit();
+  }
 }
 
 namespace {

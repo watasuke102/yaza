@@ -9,6 +9,7 @@
 #include "remote/session.hpp"
 #include "renderer.hpp"
 #include "util/signal.hpp"
+#include "wayland/seat/input_listen_server.hpp"
 
 namespace yaza::wayland::seat {
 class Seat {
@@ -16,6 +17,8 @@ class Seat {
   DISABLE_MOVE_AND_COPY(Seat);
   Seat();
   ~Seat() = default;
+
+  void move_rel_pointing(float polar, float azimuthal);
 
  private:
   struct {
@@ -26,6 +29,8 @@ class Seat {
   std::unique_ptr<Renderer>  ray_renderer_;
   void                       init_ray_renderer();
   void                       update_ray_vertices();
+
+  std::unique_ptr<InputListenServer> input_listen_server_;
 
   util::Listener<remote::Session*> session_established_listener_;
   util::Listener<std::nullptr_t*>  session_disconnected_listener_;
