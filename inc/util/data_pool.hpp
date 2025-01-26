@@ -3,6 +3,7 @@
 #include <wayland-server-core.h>
 #include <zen-remote/server/buffer.h>
 
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 
@@ -24,10 +25,9 @@ class DataPool {
   }
 
   void from_weak_resource(const WeakResource<void*>& data) {
-    auto* buffer   = data.get_buffer();
+    auto* buffer = data.get_buffer();
+    this->ensure_and_set_data_size(zwin::shm_buffer::get_buffer_size(buffer));
     auto* data_ptr = zwin::shm_buffer::get_buffer_data(buffer);
-    this->size_    = zwin::shm_buffer::get_buffer_size(buffer);
-    this->data_    = std::shared_ptr<void>(malloc(this->size_), free);
 
     zwin::shm_buffer::begin_access(buffer);
     std::memcpy(this->data_.get(), data_ptr, this->size_);
@@ -36,11 +36,11 @@ class DataPool {
 
   /// read wl_shm_buffer attached to wl_surface, convert RGBA format and store
   void read_wl_surface_texture(wl_shm_buffer* buffer) {
-    this->size_ = static_cast<ssize_t>(wl_shm_buffer_get_stride(buffer)) *
-                  wl_shm_buffer_get_height(buffer);
-    this->data_ = std::shared_ptr<void>(malloc(this->size_), free);
-    auto* src   = static_cast<uint8_t*>(wl_shm_buffer_get_data(buffer));
-    auto* dst   = static_cast<uint8_t*>(this->data_.get());
+    this->ensure_and_set_data_size(
+        static_cast<ssize_t>(wl_shm_buffer_get_stride(buffer)) *
+        wl_shm_buffer_get_height(buffer));
+    auto* src = static_cast<uint8_t*>(wl_shm_buffer_get_data(buffer));
+    auto* dst = static_cast<uint8_t*>(this->data_.get());
 
     // format of wl_shm_buffer matches /WL_SHM_FORMAT_[AX]RGB8888/
     // it is expressed in little-endian, so:
@@ -59,8 +59,7 @@ class DataPool {
   }
 
   void from_ptr(const void* data, ssize_t size) {
-    this->size_ = size;
-    this->data_ = std::shared_ptr<void>(malloc(this->size_), free);
+    this->ensure_and_set_data_size(size);
     std::memcpy(this->data_.get(), data, this->size_);
   }
 
@@ -88,5 +87,18 @@ class DataPool {
  private:
   ssize_t               size_ = 0;
   std::shared_ptr<void> data_;
+
+  /// renew `size_` and reallocate `data_` if the capacity is not enough
+  void ensure_and_set_data_size(ssize_t size) {
+    if (this->size_ >= size) {
+      this->size_ = size;
+      return;
+    }
+    if (this->has_data()) {
+      this->data_.reset();
+    }
+    this->data_ = std::shared_ptr<void>(malloc(size), free);
+    this->size_ = size;
+  }
 };
 }  // namespace yaza::util

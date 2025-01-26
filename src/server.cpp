@@ -9,6 +9,7 @@
 
 #include "common.hpp"
 #include "remote/remote.hpp"
+#include "wayland/seat/seat.hpp"
 #include "wayland/wayland.hpp"
 #include "xdg_shell/xdg_shell.hpp"
 #include "zwin/zwin.hpp"
@@ -38,6 +39,7 @@ Server::Server() {
   wl_display_init_shm(this->wl_display_);
 
   remote::init(this->loop());
+  this->seat_ = new wayland::seat::Seat();
 
   if (!wayland::init(this->wl_display_)) {
     BAIL(nullptr);
@@ -81,6 +83,7 @@ Server::~Server() {
   if (this->sigterm_source_) {
     wl_event_source_remove(sigterm_source_);
   }
+  delete this->seat_;
   if (this->wl_display_) {
     wl_display_destroy_clients(this->wl_display_);
     wl_display_destroy(this->wl_display_);

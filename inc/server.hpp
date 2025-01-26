@@ -8,7 +8,11 @@
 
 #include "common.hpp"
 
-namespace yaza::server {
+namespace yaza {
+namespace wayland::seat {
+class Seat;
+}
+namespace server {
 class Server {
  public:
   DISABLE_MOVE_AND_COPY(Server);
@@ -27,12 +31,14 @@ class Server {
   bool        is_started_         = false;
   const char* socket_;
 
-  wl_display*      wl_display_     = nullptr;
-  wl_event_source* sigterm_source_ = nullptr;
-  wl_event_source* sigquit_source_ = nullptr;
-  wl_event_source* sigint_source_  = nullptr;
+  wayland::seat::Seat* seat_           = nullptr;
+  wl_display*          wl_display_     = nullptr;
+  wl_event_source*     sigterm_source_ = nullptr;
+  wl_event_source*     sigquit_source_ = nullptr;
+  wl_event_source*     sigint_source_  = nullptr;
 };
 
 uint32_t       next_serial();
 wl_event_loop* loop();
-}  // namespace yaza::server
+}  // namespace server
+}  // namespace yaza

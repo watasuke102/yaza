@@ -6,13 +6,14 @@
 #include <zen-remote/server/gl-shader.h>
 #include <zen-remote/server/gl-vertex-array.h>
 
+#include <glm/ext/quaternion_float.hpp>
 #include <memory>
 
 #include "remote/remote.hpp"
 
 namespace yaza {
 Renderer::Renderer(const char* vert_shader, const char* frag_shader)
-    : pos_(0.F) {
+    : pos_(0.F), rot_() {
   auto channel          = remote::g_remote->channel_nonnull();
   this->virtual_object_ = zen::remote::server::CreateVirtualObject(channel);
   this->rendering_unit_ = zen::remote::server::CreateRenderingUnit(
@@ -48,9 +49,6 @@ void Renderer::move_abs(float x, float y, float z) {
   this->pos_.z = z;
 }
 void Renderer::set_vertex(const std::vector<BufferElement>& buffer) {
-  if (this->vert_data_.has_data()) {
-    this->vert_data_.reset();
-  }
   auto size = buffer.size() * sizeof(BufferElement);
   this->vert_data_.from_ptr(buffer.data(), size);
   this->vert_buffer_->GlBufferData(
