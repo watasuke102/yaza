@@ -22,7 +22,7 @@ void get_bounded(wl_client* client, wl_resource* /*resource*/, uint32_t id,
   auto* bounded_resource = bounded::create(client, id);
   if (bounded_resource) {
     zwn_bounded_send_configure(
-        bounded_resource, half_size, server::next_serial());
+        bounded_resource, half_size, server::get().next_serial());
   }
 }
 void get_expansive(wl_client* client, wl_resource* /*resource*/, uint32_t id,

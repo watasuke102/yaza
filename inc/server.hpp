@@ -4,6 +4,7 @@
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
 
+#include <cassert>
 #include <csignal>
 
 #include "common.hpp"
@@ -16,19 +17,24 @@ namespace server {
 class Server {
  public:
   DISABLE_MOVE_AND_COPY(Server);
-  Server();
-  ~Server();
+  /// return false if failed
+  static bool    init();
+  static Server& get_instance() {
+    return instance;
+  }
+  void terminate();
+
   void           start();
   uint32_t       next_serial();
   wl_event_loop* loop();
 
-  [[nodiscard]] bool is_creation_failed() const {
-    return this->is_creation_failed_;
-  }
-
  private:
-  bool        is_creation_failed_ = false;
-  bool        is_started_         = false;
+  Server()  = default;
+  ~Server() = default;
+  static Server instance;
+
+  bool        is_initialized_ = false;
+  bool        is_started_     = false;
   const char* socket_;
 
   wayland::seat::Seat* seat_           = nullptr;
@@ -38,7 +44,9 @@ class Server {
   wl_event_source*     sigint_source_  = nullptr;
 };
 
-uint32_t       next_serial();
-wl_event_loop* loop();
+/// shortening
+inline Server& get() {
+  return Server::get_instance();
+}
 }  // namespace server
 }  // namespace yaza

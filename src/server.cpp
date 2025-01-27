@@ -16,62 +16,66 @@
 
 namespace yaza::server {
 namespace {
-int handle_signal(int /*signum*/, void* data) {
-  auto* display = static_cast<wl_display*>(data);
-  wl_display_terminate(display);
+int handle_signal(int /*signum*/, void* /*data*/) {
+  get().terminate();
   return 0;
 }
 }  // namespace
+Server Server::instance;
 
-Server::Server() {
+bool Server::init() {
   // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define BAIL(err)                                                              \
   if (err) {                                                                   \
     LOG_ERR(err);                                                              \
   }                                                                            \
-  this->is_creation_failed_ = true;                                            \
-  return
+  return false
 
-  this->wl_display_ = wl_display_create();
-  if (!this->wl_display_) {
+  assert(!instance.is_initialized_);
+  instance.is_initialized_ = true;
+
+  instance.wl_display_ = wl_display_create();
+  if (!instance.wl_display_) {
     BAIL("Failed to create display");
   }
-  wl_display_init_shm(this->wl_display_);
+  wl_display_init_shm(instance.wl_display_);
 
-  remote::init(this->loop());
-  this->seat_ = new wayland::seat::Seat();
+  remote::init(instance.loop());
+  instance.seat_ = new wayland::seat::Seat();
 
-  if (!wayland::init(this->wl_display_)) {
+  if (!wayland::init(instance.wl_display_)) {
     BAIL(nullptr);
   }
-  if (!xdg_shell::init(this->wl_display_)) {
+  if (!xdg_shell::init(instance.wl_display_)) {
     BAIL(nullptr);
   }
-  if (!zwin::init(this->wl_display_)) {
+  if (!zwin::init(instance.wl_display_)) {
     BAIL(nullptr);
   }
 
-  this->sigterm_source_ = wl_event_loop_add_signal(
-      this->loop(), SIGTERM, handle_signal, this->wl_display_);
-  if (!this->sigterm_source_) {
+  instance.sigterm_source_ = wl_event_loop_add_signal(
+      instance.loop(), SIGTERM, handle_signal, instance.wl_display_);
+  if (!instance.sigterm_source_) {
     BAIL("Failed to add SIGTERM handler");
   }
-  this->sigquit_source_ = wl_event_loop_add_signal(
-      this->loop(), SIGQUIT, handle_signal, this->wl_display_);
-  if (!this->sigterm_source_) {
+  instance.sigquit_source_ = wl_event_loop_add_signal(
+      instance.loop(), SIGQUIT, handle_signal, instance.wl_display_);
+  if (!instance.sigterm_source_) {
     BAIL("Failed to add SIGQUIT handler");
   }
-  this->sigint_source_ = wl_event_loop_add_signal(
-      this->loop(), SIGINT, handle_signal, this->wl_display_);
-  if (!this->sigint_source_) {
+  instance.sigint_source_ = wl_event_loop_add_signal(
+      instance.loop(), SIGINT, handle_signal, instance.wl_display_);
+  if (!instance.sigint_source_) {
     BAIL("Failed to add SIGINT handler");
   }
 
-  this->socket_ = wl_display_add_socket_auto(this->wl_display_);
-  setenv("WAYLAND_DISPLAY", this->socket_, true);
+  instance.socket_ = wl_display_add_socket_auto(instance.wl_display_);
+  setenv("WAYLAND_DISPLAY", instance.socket_, true);
+  return true;
 #undef BAIL
 }
-Server::~Server() {
+void Server::terminate() {
+  assert(this->is_initialized_);
   LOG_INFO("destroying Server");
   remote::terminate();
   if (this->sigint_source_) {

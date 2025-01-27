@@ -70,7 +70,7 @@ class DataPool {
         [data = std::move(data)]() mutable {
           data.reset();
         },
-        std::make_unique<remote::Loop>(server::loop()));
+        std::make_unique<remote::Loop>(server::get().loop()));
   }
 
   [[nodiscard]] ssize_t size() const {
