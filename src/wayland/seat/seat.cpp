@@ -26,17 +26,20 @@ namespace {
 // clang-format off
 constexpr auto* kVertShader = GLSL(
   uniform mat4 zMVP;
-  layout(location = 0) in vec3 pos;
+  layout(location = 0) in vec3 pos_in;
+  out vec3 pos;
 
   void main() {
-    gl_Position = zMVP * vec4(pos, 1.0);
+    gl_Position = zMVP * vec4(pos_in, 1.0);
+    pos = gl_Position.xyz;
   }
 );
 constexpr auto* kFragShader = GLSL(
+  in  vec3 pos;
   out vec4 color;
 
   void main() {
-    color = vec4(0.0, 1.0, 0.0, 1.0);
+    color = vec4(0.0, 1.0, 0.0, length(pos)*20.0);
   }
 );
 // clang-format on
@@ -46,21 +49,21 @@ Seat::Seat()
           {.x_ = 0.F, .y_ = 0.F, .z_ = 0.F, .u_ = 0.F, .v_ = 0.F},
           {.x_ = 0.F, .y_ = 0.F, .z_ = 0.F, .u_ = 0.F, .v_ = 0.F},
 } {
-  if (remote::g_remote->has_session()) {
+  if (server::get().remote->has_session()) {
     this->init_ray_renderer();
   }
   this->session_established_listener_.set_handler(
       [this](remote::Session* /*session*/) {
         this->init_ray_renderer();
       });
-  remote::g_remote->listen_session_established(
+  server::get().remote->listen_session_established(
       this->session_established_listener_);
 
   this->session_disconnected_listener_.set_handler(
       [this](std::nullptr_t* /*data*/) {
         this->ray_renderer_ = nullptr;
       });
-  remote::g_remote->listen_session_disconnected(
+  server::get().remote->listen_session_disconnected(
       this->session_disconnected_listener_);
   this->input_listen_server_ = std::make_unique<InputListenServer>(this);
 }

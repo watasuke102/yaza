@@ -14,7 +14,7 @@
 namespace yaza {
 Renderer::Renderer(const char* vert_shader, const char* frag_shader)
     : pos_(0.F), rot_() {
-  auto channel          = remote::g_remote->channel_nonnull();
+  auto channel          = server::get().remote->channel_nonnull();
   this->virtual_object_ = zen::remote::server::CreateVirtualObject(channel);
   this->rendering_unit_ = zen::remote::server::CreateRenderingUnit(
       channel, this->virtual_object_->id());

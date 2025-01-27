@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "remote/remote.hpp"
+#include "server.hpp"
 #include "util/weakable_unique_ptr.hpp"
 #include "zwin/gles_v32/gl_shader.hpp"
 
@@ -21,7 +22,7 @@ GlProgram::GlProgram(wl_resource* resource) : resource_(resource) {
       [this](std::nullptr_t* /*data*/) {
         this->proxy_ = std::nullopt;
       });
-  remote::g_remote->listen_session_disconnected(
+  server::get().remote->listen_session_disconnected(
       this->session_disconnected_listener_);
   LOG_DEBUG("created: GlProgram");
 }
@@ -52,7 +53,7 @@ void GlProgram::commit() {
 void GlProgram::sync(bool force_sync) {
   if (!this->proxy_.has_value()) {
     this->proxy_ = zen::remote::server::CreateGlProgram(
-        remote::g_remote->channel_nonnull());
+        server::get().remote->channel_nonnull());
   }
   bool should_attach = force_sync || this->current_.should_link_;
   // for (auto* shader : this->current_.shaders_) {

@@ -20,6 +20,7 @@
 
 #include "common.hpp"
 #include "remote/remote.hpp"
+#include "server.hpp"
 #include "util/convert.hpp"
 #include "util/visitor_list.hpp"
 #include "util/weakable_unique_ptr.hpp"
@@ -46,7 +47,7 @@ GlSampler::GlSampler() {
       [this](std::nullptr_t* /*data*/) {
         this->proxy_ = std::nullopt;
       });
-  remote::g_remote->listen_session_disconnected(
+  server::get().remote->listen_session_disconnected(
       this->session_disconnected_listener_);
   LOG_DEBUG("created: GlSampler");
 }
@@ -64,7 +65,7 @@ void GlSampler::commit() {
 void GlSampler::sync(bool force_sync) {
   if (!this->proxy_.has_value()) {
     this->proxy_ = zen::remote::server::CreateGlSampler(
-        remote::g_remote->channel_nonnull());
+        server::get().remote->channel_nonnull());
   }
   for (auto& [pname, param] : this->current_.params_) {
     if (!force_sync && !param.changed_) {

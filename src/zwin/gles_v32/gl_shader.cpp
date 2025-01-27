@@ -13,6 +13,7 @@
 #include <optional>
 
 #include "remote/remote.hpp"
+#include "server.hpp"
 #include "util/weakable_unique_ptr.hpp"
 #include "zwin/shm/shm_buffer.hpp"
 
@@ -24,7 +25,7 @@ GlShader::GlShader(
       [this](std::nullptr_t* /**/) {
         this->proxy_ = std::nullopt;
       });
-  remote::g_remote->listen_session_disconnected(
+  server::get().remote->listen_session_disconnected(
       this->session_disconnected_listener_);
   LOG_DEBUG("created: GlShader");
 }
@@ -37,9 +38,9 @@ void GlShader::sync() {
   if (!this->proxy_.has_value()) {
     auto*   source = zwin::shm_buffer::get_buffer_data(this->buffer_);
     ssize_t len    = zwin::shm_buffer::get_buffer_size(this->buffer_);
-    this->proxy_ =
-        zen::remote::server::CreateGlShader(remote::g_remote->channel_nonnull(),
-            std::string(static_cast<char*>(source), len), this->type_);
+    this->proxy_   = zen::remote::server::CreateGlShader(
+        server::get().remote->channel_nonnull(),
+        std::string(static_cast<char*>(source), len), this->type_);
   }
 }
 

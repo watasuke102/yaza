@@ -46,14 +46,18 @@ class LogSink : public zen::remote::ILogSink {
 
 constexpr uint64_t kRefreshIntervalNsec = 1'000'000'000.F / 60.F /*FPS*/;
 constexpr int      kNsecPerMsec         = 1'000'000;
+bool               logger_initialized   = false;
 }  // namespace
-std::unique_ptr<Remote> g_remote = nullptr;  // NOLINT
-
 Remote::Remote(wl_event_loop* loop)
     : wl_loop_(loop)
     , current_session_(std::nullopt)
     , peer_manager_(zen::remote::server::CreatePeerManager(
           std::make_unique<Loop>(loop))) {
+  if (!logger_initialized) {
+    zen::remote::InitializeLogger(std::make_unique<LogSink>());
+    logger_initialized = true;
+  }
+
   this->peer_discover_signal_disconnector_ =
       this->peer_manager_->on_peer_discover.Connect([this](uint64_t peer_id) {
         auto peer = this->peer_manager_->Get(peer_id);
@@ -150,13 +154,5 @@ void Remote::disconnect() {
       "disconnecting session (id=%lu)", this->current_session_->get()->id());
   this->current_session_ = std::nullopt;
   this->events_.session_disconnected_.emit(nullptr);
-}
-
-void terminate() {
-  g_remote = nullptr;
-}
-void init(wl_event_loop* loop) {
-  zen::remote::InitializeLogger(std::make_unique<LogSink>());
-  g_remote = std::make_unique<Remote>(loop);
 }
 }  // namespace yaza::remote

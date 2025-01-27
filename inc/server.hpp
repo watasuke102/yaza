@@ -8,12 +8,14 @@
 #include <csignal>
 
 #include "common.hpp"
+#include "remote/remote.hpp"
 
 namespace yaza {
 namespace wayland::seat {
 class Seat;
 }
 namespace server {
+// NOLINTBEGIN(cppcoreguidelines-non-private-member-variables-in-classes,readability-identifier-naming)
 class Server {
  public:
   DISABLE_MOVE_AND_COPY(Server);
@@ -28,6 +30,8 @@ class Server {
   uint32_t       next_serial();
   wl_event_loop* loop();
 
+  remote::Remote* remote;
+
  private:
   Server()  = default;
   ~Server() = default;
@@ -35,6 +39,7 @@ class Server {
 
   bool        is_initialized_ = false;
   bool        is_started_     = false;
+  bool        is_terminated_  = false;
   const char* socket_;
 
   wayland::seat::Seat* seat_           = nullptr;
@@ -50,3 +55,4 @@ inline Server& get() {
 }
 }  // namespace server
 }  // namespace yaza
+// NOLINTEND(cppcoreguidelines-non-private-member-variables-in-classes,readability-identifier-naming)

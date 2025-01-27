@@ -26,14 +26,14 @@ VirtualObject::VirtualObject() {
           this->sync(true);
         }
       });
-  remote::g_remote->listen_session_established(
+  server::get().remote->listen_session_established(
       this->session_established_listener_);
 
   this->session_disconnected_listener_.set_handler(
       [this](std::nullptr_t* /*data*/) {
         this->proxy_ = std::nullopt;
       });
-  remote::g_remote->listen_session_disconnected(
+  server::get().remote->listen_session_disconnected(
       this->session_disconnected_listener_);
 
   this->session_frame_listener_.set_handler([this](std::nullptr_t* /*data*/) {
@@ -46,7 +46,7 @@ VirtualObject::VirtualObject() {
       wl_resource_destroy(callback);
     }
   });
-  remote::g_remote->listen_session_frame(this->session_frame_listener_);
+  server::get().remote->listen_session_frame(this->session_frame_listener_);
 
   wl_list_init(&this->pending_.frame_callback_list_);
   wl_list_init(&this->current_.frame_callback_list_);
@@ -68,7 +68,7 @@ void VirtualObject::commit() {
   wl_list_init(&this->pending_.frame_callback_list_);
   this->committed_ = true;
   this->events_.committed_.emit(nullptr);
-  if (remote::g_remote->has_session()) {
+  if (server::get().remote->has_session()) {
     // sync only updated (damaged) data
     this->sync(false);
   }
@@ -82,7 +82,7 @@ void VirtualObject::sync(bool force_sync) {
       "sync: VirtualObject (force_sync=%s)", force_sync ? "true" : "false");
   if (!this->proxy_.has_value()) {
     this->proxy_ = zen::remote::server::CreateVirtualObject(
-        remote::g_remote->channel_nonnull());
+        server::get().remote->channel_nonnull());
     auto v = glm::vec3{0.F, 1.F, -3.F};
     auto q = glm::quat();
     this->proxy_->get()->Move(

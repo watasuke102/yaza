@@ -52,21 +52,21 @@ Surface::Surface(uint32_t id)
     : geom_(glm::vec3(0.F, 0.85F, -kRadiusFromOrigin),
           glm::quat(glm::vec3(0.F, 0.F, 0.F)), glm::vec3{1.F, 1.F, 0.F})
     , id_(id) {
-  if (remote::g_remote->has_session()) {
+  if (server::get().remote->has_session()) {
     this->init_renderer();
   }
   this->session_established_listener_.set_handler(
       [this](remote::Session* /*session*/) {
         this->init_renderer();
       });
-  remote::g_remote->listen_session_established(
+  server::get().remote->listen_session_established(
       this->session_established_listener_);
 
   this->session_disconnected_listener_.set_handler(
       [this](std::nullptr_t* /*data*/) {
         this->renderer_ = nullptr;
       });
-  remote::g_remote->listen_session_disconnected(
+  server::get().remote->listen_session_disconnected(
       this->session_disconnected_listener_);
 
   LOG_DEBUG("constructor: wl_surface@%u", this->id_);

@@ -16,7 +16,8 @@
 
 namespace yaza::server {
 namespace {
-int handle_signal(int /*signum*/, void* /*data*/) {
+int handle_signal(int signum, void* /*data*/) {
+  LOG_INFO("Signal received: %d", signum);
   get().terminate();
   return 0;
 }
@@ -40,8 +41,8 @@ bool Server::init() {
   }
   wl_display_init_shm(instance.wl_display_);
 
-  remote::init(instance.loop());
-  instance.seat_ = new wayland::seat::Seat();
+  instance.remote = new remote::Remote(instance.loop());
+  instance.seat_  = new wayland::seat::Seat();
 
   if (!wayland::init(instance.wl_display_)) {
     BAIL(nullptr);
@@ -76,8 +77,15 @@ bool Server::init() {
 }
 void Server::terminate() {
   assert(this->is_initialized_);
+  if (this->is_terminated_) {
+    return;
+  }
   LOG_INFO("destroying Server");
-  remote::terminate();
+  this->is_terminated_ = true;
+  if (this->wl_display_) {
+    wl_display_destroy_clients(this->wl_display_);
+  }
+  delete this->remote;
   if (this->sigint_source_) {
     wl_event_source_remove(sigint_source_);
   }
@@ -89,7 +97,6 @@ void Server::terminate() {
   }
   delete this->seat_;
   if (this->wl_display_) {
-    wl_display_destroy_clients(this->wl_display_);
     wl_display_destroy(this->wl_display_);
   }
 }

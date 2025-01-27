@@ -25,7 +25,7 @@ GlTexture::GlTexture() {
       [this](std::nullptr_t* /*data*/) {
         this->proxy_ = std::nullopt;
       });
-  remote::g_remote->listen_session_disconnected(
+  server::get().remote->listen_session_disconnected(
       this->session_disconnected_listener_);
   LOG_DEBUG("created: GlTexture");
 }
@@ -56,7 +56,7 @@ void GlTexture::commit() {
 void GlTexture::sync(bool force_sync) {
   if (!this->proxy_.has_value()) {
     this->proxy_ = zen::remote::server::CreateGlTexture(
-        remote::g_remote->channel_nonnull());
+        server::get().remote->channel_nonnull());
   }
   if (force_sync || this->current_.data_changed_) {
     this->proxy_->get()->GlTexImage2D(this->current_.image_2d_.target_,

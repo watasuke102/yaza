@@ -38,7 +38,7 @@ GlVertexArray::GlVertexArray() {
       [this](std::nullptr_t* /*data*/) {
         this->proxy_ = std::nullopt;
       });
-  remote::g_remote->listen_session_disconnected(
+  server::get().remote->listen_session_disconnected(
       this->session_disconnected_listener_);
   LOG_DEBUG("created: GlVertexArray");
 }
@@ -63,7 +63,7 @@ void GlVertexArray::commit() {
 void GlVertexArray::sync(bool force_sync) {
   if (!this->proxy_.has_value()) {
     this->proxy_ = zen::remote::server::CreateGlVertexArray(
-        remote::g_remote->channel_nonnull());
+        server::get().remote->channel_nonnull());
   }
   for (auto& [index, attrib] : this->current_.attribute_map_) {
     auto* buffer = attrib.gl_buffer_.lock();

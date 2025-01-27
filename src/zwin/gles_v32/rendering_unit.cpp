@@ -25,7 +25,7 @@ RenderingUnit::RenderingUnit(
       [this](std::nullptr_t* /*data*/) {
         this->proxy_ = std::nullopt;
       });
-  remote::g_remote->listen_session_disconnected(
+  server::get().remote->listen_session_disconnected(
       this->session_disconnected_listener_);
 
   this->owner_committed_listener_.set_handler([this](std::nullptr_t* /*data*/) {
@@ -57,7 +57,7 @@ void RenderingUnit::sync(bool force_sync) {
   LOG_DEBUG("sync: RenderingUnit");
   if (!this->proxy_.has_value()) {
     this->proxy_ = zen::remote::server::CreateRenderingUnit(
-        remote::g_remote->channel_nonnull(), this->owner_->remote_id());
+        server::get().remote->channel_nonnull(), this->owner_->remote_id());
   }
   if (this->technique_.has_value()) {
     this->technique_.value()->sync(force_sync);
