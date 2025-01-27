@@ -48,6 +48,12 @@ void Renderer::move_abs(float x, float y, float z) {
   this->pos_.y = y;
   this->pos_.z = z;
 }
+void Renderer::move_abs(glm::vec3& v) {
+  this->pos_ = v;
+}
+void Renderer::set_rot(glm::quat& q) {
+  this->rot_ = q;
+}
 void Renderer::set_vertex(const std::vector<BufferElement>& buffer) {
   auto size = buffer.size() * sizeof(BufferElement);
   this->vert_data_.from_ptr(buffer.data(), size);
@@ -69,6 +75,11 @@ void Renderer::set_texture(
   this->vert_array_->GlEnableVertexAttribArray(1);
   this->vert_array_->GlVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE,
       sizeof(BufferElement), sizeof(float) * 3, this->vert_buffer_->id());
+}
+void Renderer::set_uniform_matrix(
+    uint32_t location, const char* name, glm::mat4& mat) {
+  this->technique_->GlUniformMatrix(
+      location, name, 4, 4, 1, false, (float*)&mat);  // NOLINT
 }
 void Renderer::request_draw_arrays(
     uint32_t mode, int32_t first, uint32_t count) {

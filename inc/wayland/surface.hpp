@@ -11,6 +11,7 @@
 #include "common.hpp"
 #include "remote/session.hpp"
 #include "renderer.hpp"
+#include "util/box.hpp"
 #include "util/data_pool.hpp"
 #include "util/signal.hpp"
 
@@ -41,6 +42,8 @@ class Surface {
   uint32_t       tex_width_;
   uint32_t       tex_height_;
 
+  util::Box                 geom_;
+  void                      update_geom();
   std::unique_ptr<Renderer> renderer_;
   void                      init_renderer();
 

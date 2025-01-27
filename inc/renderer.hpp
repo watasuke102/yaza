@@ -31,10 +31,12 @@ class Renderer {
   Renderer(const char* vert_shader, const char* frag_shader);
   ~Renderer() = default;
 
-  // TODO: rotate function
   void move_abs(float x, float y, float z);
+  void move_abs(glm::vec3& v);
+  void set_rot(glm::quat& q);
   void set_vertex(const std::vector<BufferElement>& buffer);
   void set_texture(util::DataPool& texture, uint32_t width, uint32_t height);
+  void set_uniform_matrix(uint32_t location, const char* name, glm::mat4& mat);
   void request_draw_arrays(uint32_t mode, int32_t first, uint32_t count);
   void commit();
 

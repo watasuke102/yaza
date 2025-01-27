@@ -6,6 +6,9 @@
 #include <wayland-server.h>
 
 #include <cstdint>
+#include <glm/ext/matrix_float4x4.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/ext/quaternion_float.hpp>
 #include <memory>
 #include <optional>
 
@@ -14,19 +17,21 @@
 #include "remote/session.hpp"
 #include "renderer.hpp"
 #include "util/time.hpp"
+#include "util/weakable_unique_ptr.hpp"
 
 namespace yaza::wayland::surface {
 namespace {
 // clang-format off
 constexpr auto* kVertShader = GLSL(
   uniform mat4 zMVP;
+  uniform mat4 surface_scale;
   layout(location = 0) in vec3 pos;
   layout(location = 1) in vec2 vertex_uv;
 
   out vec2 uv;
 
   void main() {
-    gl_Position = zMVP * vec4(pos, 1.0);
+    gl_Position = zMVP * surface_scale * vec4(pos, 1.0);
     uv          = vertex_uv;
   }
 );
@@ -40,8 +45,13 @@ constexpr auto* kFragShader = GLSL(
   }
 );
 // clang-format on
+constexpr float kPixelPerMeter    = 9000.F;
+constexpr float kRadiusFromOrigin = 0.4F;
 }  // namespace
-Surface::Surface(uint32_t id) : id_(id) {
+Surface::Surface(uint32_t id)
+    : geom_(glm::vec3(0.F, 0.85F, -kRadiusFromOrigin),
+          glm::quat(glm::vec3(0.F, 0.F, 0.F)), glm::vec3{1.F, 1.F, 0.F})
+    , id_(id) {
   if (remote::g_remote->has_session()) {
     this->init_renderer();
   }
@@ -66,14 +76,14 @@ Surface::~Surface() {
 }
 void Surface::init_renderer() {
   this->renderer_       = std::make_unique<Renderer>(kVertShader, kFragShader);
-  constexpr float kSize = 0.3F;
-  this->renderer_->move_abs(0.F, 1.F, -1.8F);
+  constexpr float kSize = 1.F;
+  this->renderer_->move_abs(this->geom_.pos());
+  this->renderer_->set_rot(this->geom_.rot());
   this->renderer_->set_vertex(std::vector<BufferElement>{
       /*
         3 -- 0
         |    |
         2 -- 1
-        `v` is reversed?
         */
       {.x_ = +kSize, .y_ = +kSize, .z_ = -0.F, .u_ = 1.F, .v_ = 0.F},
       {.x_ = +kSize, .y_ = -kSize, .z_ = -0.F, .u_ = 1.F, .v_ = 1.F},
@@ -81,12 +91,23 @@ void Surface::init_renderer() {
       {.x_ = -kSize, .y_ = +kSize, .z_ = -0.F, .u_ = 0.F, .v_ = 0.F},
   });
   this->renderer_->request_draw_arrays(GL_TRIANGLE_FAN, 0, 4);
-
+  this->update_geom();
   if (this->texture_.has_data()) {
     this->renderer_->set_texture(
         this->texture_, this->tex_width_, this->tex_height_);
     this->renderer_->commit();
   }
+}
+void Surface::update_geom() {
+  this->geom_.width()  = static_cast<float>(this->tex_width_) / kPixelPerMeter;
+  this->geom_.height() = static_cast<float>(this->tex_height_) / kPixelPerMeter;
+  LOG_DEBUG("geom: %d, %d -> %.7f, %.7f", tex_width_, tex_height_,
+      geom_.width(), geom_.height());
+  if (!this->renderer_) {
+    return;
+  }
+  glm::mat4 model_mat = glm::scale(glm::mat4(1.F), this->geom_.size());
+  this->renderer_->set_uniform_matrix(0, "surface_scale", model_mat);
 }
 
 void Surface::attach(wl_resource* buffer, int32_t /*sx*/, int32_t /*sy*/) {
@@ -118,6 +139,7 @@ void Surface::commit() {
       this->texture_.read_wl_surface_texture(shm_buffer);
       this->tex_width_  = wl_shm_buffer_get_width(shm_buffer);
       this->tex_height_ = wl_shm_buffer_get_height(shm_buffer);
+      this->update_geom();
     } else {
       LOG_ERR("yaza does not support surface buffer format (%u)", format);
     }
@@ -147,8 +169,9 @@ void destroy(wl_client* /*client*/, wl_resource* resource) {
 }
 void attach(wl_client* /*client*/, wl_resource* resource,
     wl_resource* buffer_resource, int32_t x, int32_t y) {
-  auto* surface = static_cast<Surface*>(wl_resource_get_user_data(resource));
-  surface->attach(buffer_resource, x, y);
+  auto* surface =
+      static_cast<util::UniPtr<Surface>*>(wl_resource_get_user_data(resource));
+  (*surface)->attach(buffer_resource, x, y);
 }
 void damage(wl_client* /*client*/, wl_resource* /*resource*/, int32_t /*x*/,
     int32_t /*y*/, int32_t /*width*/, int32_t /*height*/) {
@@ -158,8 +181,9 @@ void frame(wl_client* client, wl_resource* resource, uint32_t callback) {
   wl_resource* callback_resource =
       wl_resource_create(client, &wl_callback_interface, 1, callback);
   if (callback_resource) {
-    static_cast<Surface*>(wl_resource_get_user_data(resource))
-        ->set_callback(callback_resource);
+    auto* self = static_cast<util::UniPtr<Surface>*>(
+        wl_resource_get_user_data(resource));
+    (*self)->set_callback(callback_resource);
   } else {
     wl_client_post_no_memory(client);
   }
@@ -173,7 +197,9 @@ void set_input_region(wl_client* /*client*/, wl_resource* /*resource*/,
   // TODO
 }
 void commit(wl_client* /*client*/, wl_resource* resource) {
-  static_cast<Surface*>(wl_resource_get_user_data(resource))->commit();
+  auto* self =
+      static_cast<util::UniPtr<Surface>*>(wl_resource_get_user_data(resource));
+  (*self)->commit();
 }
 void set_buffer_transform(
     wl_client* /*client*/, wl_resource* /*resource*/, int32_t /*transform*/) {
@@ -206,7 +232,8 @@ const struct wl_surface_interface kImpl = {
 };
 
 void destroy(wl_resource* resource) {
-  auto* surface = static_cast<Surface*>(wl_resource_get_user_data(resource));
+  auto* surface =
+      static_cast<util::UniPtr<Surface>*>(wl_resource_get_user_data(resource));
   delete surface;
 }
 }  // namespace
@@ -218,7 +245,7 @@ void create(wl_client* client, int version, uint32_t id) {
     wl_client_post_no_memory(client);
     return;
   }
-  auto* surface = new Surface(id);
+  auto* surface = new util::UniPtr<Surface>(id);
   wl_resource_set_implementation(surface_resource, &kImpl, surface, destroy);
 }
 }  // namespace yaza::wayland::surface

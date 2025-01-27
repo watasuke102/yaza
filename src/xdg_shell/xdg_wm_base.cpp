@@ -17,9 +17,10 @@ void create_positioner(
 }
 void get_xdg_surface(wl_client* client, wl_resource* resource, uint32_t id,
     wl_resource* surface_resource) {
-  auto* surface = static_cast<wayland::surface::Surface*>(
+  auto* surface = static_cast<util::UniPtr<wayland::surface::Surface>*>(
       wl_resource_get_user_data(surface_resource));
-  xdg_surface::create(client, wl_resource_get_version(resource), id, surface);
+  xdg_surface::create(
+      client, wl_resource_get_version(resource), id, (*surface).weak());
 }
 void pong(
     wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*serial*/) {
