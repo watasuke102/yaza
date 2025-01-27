@@ -16,8 +16,8 @@
 #include <vector>
 
 #include "common.hpp"
-#include "remote/remote.hpp"
 #include "renderer.hpp"
+#include "server.hpp"
 #include "wayland/seat/input_listen_server.hpp"
 #include "wayland/seat/pointer.hpp"
 

@@ -13,8 +13,8 @@
 #include <glm/vec3.hpp>
 
 #include "common.hpp"
-#include "remote/remote.hpp"
 #include "remote/session.hpp"
+#include "server.hpp"
 #include "util/time.hpp"
 
 namespace yaza::zwin::virtual_object {

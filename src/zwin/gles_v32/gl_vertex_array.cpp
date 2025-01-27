@@ -11,7 +11,7 @@
 #include <memory>
 
 #include "common.hpp"
-#include "remote/remote.hpp"
+#include "server.hpp"
 #include "util/weakable_unique_ptr.hpp"
 #include "zwin/gles_v32/gl_buffer.hpp"
 

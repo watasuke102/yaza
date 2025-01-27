@@ -13,9 +13,9 @@
 #include <optional>
 
 #include "common.hpp"
-#include "remote/remote.hpp"
 #include "remote/session.hpp"
 #include "renderer.hpp"
+#include "server.hpp"
 #include "util/time.hpp"
 #include "util/weakable_unique_ptr.hpp"
 

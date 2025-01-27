@@ -10,11 +10,10 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <memory>
 #include <optional>
 
 #include "common.hpp"
-#include "remote/remote.hpp"
+#include "server.hpp"
 #include "zwin/virtual_object.hpp"
 
 namespace yaza::zwin::gles_v32::rendering_unit {

@@ -9,7 +9,7 @@
 #include <glm/ext/quaternion_float.hpp>
 #include <memory>
 
-#include "remote/remote.hpp"
+#include "server.hpp"
 
 namespace yaza {
 Renderer::Renderer(const char* vert_shader, const char* frag_shader)
