@@ -52,15 +52,15 @@ InputListenServer::InputListenServer(Seat* seat) : seat_(seat) {
     }
   });
 
-  this->thread_.detach();
   LOG_INFO("InputListenServer is started (port: %d)", kServerPort);
 #undef BAIL
 }
 
 InputListenServer::~InputListenServer() {
+  // FIXME: this means nothing, proper error handling needed
+  // like not using blocking socket API (epoll)
   this->terminate_requested_ = true;
-  this->thread_.join();
-  if (socket_ != -1) {
+  if (this->socket_ != -1) {
     close(this->socket_);
   }
 }
