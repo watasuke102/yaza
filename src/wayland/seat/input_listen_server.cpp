@@ -137,8 +137,6 @@ void InputListenServer::handle_events(int client) const {
         constexpr float kDivider = 100.F;
         this->seat_->move_rel_pointing(-event->data_.movement_[1] / kDivider,
             -event->data_.movement_[0] / kDivider);
-        printf("[type 1: mouse movement] (x, y) = (%5.4f, %5.4f)\n",
-            event->data_.movement_[0], event->data_.movement_[1]);
         break;
     }
   }

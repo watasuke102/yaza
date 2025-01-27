@@ -5,6 +5,7 @@
 #include <wayland-server-protocol.h>
 #include <wayland-server.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <glm/ext/matrix_transform.hpp>
@@ -80,7 +81,7 @@ asterisk pos is expressed by (polar, azimuthal) = (0, 0)
 void Seat::init_ray_renderer() {
   this->ray_renderer_ = std::make_unique<Renderer>(kVertShader, kFragShader);
   std::vector<BufferElement> v;
-  this->ray_renderer_->move_abs(0.F, 0.9F, -0.F);
+  this->ray_renderer_->move_abs(0.F, 0.849F, -0.001F);
   this->ray_renderer_->request_draw_arrays(GL_LINE_STRIP, 0, 2);
   this->update_ray_vertices();
   this->ray_renderer_->commit();
@@ -96,7 +97,10 @@ void Seat::update_ray_vertices() {
   this->ray_renderer_->set_vertex(this->ray_vertices_);
 }
 void Seat::move_rel_pointing(float polar, float azimuthal) {
-  this->pointing_.polar_ += polar;
+  constexpr float kPolarMin = std::numbers::pi / 8.F;
+  constexpr float kPolarMax = std::numbers::pi - kPolarMin;
+  this->pointing_.polar_ =
+      std::clamp(this->pointing_.polar_ + polar, kPolarMin, kPolarMax);
   this->pointing_.azimuthal_ += azimuthal;
   if (this->ray_renderer_) {
     this->update_ray_vertices();
