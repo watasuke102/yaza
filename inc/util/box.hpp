@@ -1,7 +1,10 @@
 #pragma once
 
+#include <glm/ext/matrix_float4x4.hpp>
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/quaternion_float.hpp>
 #include <glm/ext/vector_float3.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 namespace yaza::util {
 class Box {
@@ -47,6 +50,10 @@ class Box {
   }
   float& depth() {
     return this->size_.z;
+  }
+
+  glm::mat4 mat() {
+    return glm::translate(glm::mat4(1.F), this->pos_) * glm::toMat4(this->rot_);
   }
 
  private:

@@ -84,30 +84,50 @@ asterisk pos is expressed by (polar, azimuthal) = (0, 0)
 void Seat::init_ray_renderer() {
   this->ray_renderer_ = std::make_unique<Renderer>(kVertShader, kFragShader);
   std::vector<BufferElement> v;
-  this->ray_renderer_->move_abs(0.F, 0.849F, -0.001F);
+  this->ray_renderer_->move_abs(
+      this->kOrigin.x, this->kOrigin.y, this->kOrigin.z);
   this->ray_renderer_->request_draw_arrays(GL_LINE_STRIP, 0, 2);
   this->update_ray_vertices();
   this->ray_renderer_->commit();
 }
 void Seat::update_ray_vertices() {
-  assert(this->ray_renderer_ != nullptr);
   auto r = 1.5F;
   this->ray_vertices_[1].x =
-      r * sin(this->pointing_.polar_) * sin(this->pointing_.azimuthal_),
-  this->ray_vertices_[1].y = r * cos(this->pointing_.polar_),
+      r * sin(this->pointing_.polar) * sin(this->pointing_.azimuthal),
+  this->ray_vertices_[1].y = r * cos(this->pointing_.polar),
   this->ray_vertices_[1].z =
-      r * sin(this->pointing_.polar_) * cos(this->pointing_.azimuthal_);
-  this->ray_renderer_->set_vertex(this->ray_vertices_);
+      r * sin(this->pointing_.polar) * cos(this->pointing_.azimuthal);
+  if (this->ray_renderer_) {
+    this->ray_renderer_->set_vertex(this->ray_vertices_);
+  }
 }
 void Seat::move_rel_pointing(float polar, float azimuthal) {
   constexpr float kPolarMin = std::numbers::pi / 8.F;
   constexpr float kPolarMax = std::numbers::pi - kPolarMin;
-  this->pointing_.polar_ =
-      std::clamp(this->pointing_.polar_ + polar, kPolarMin, kPolarMax);
-  this->pointing_.azimuthal_ += azimuthal;
+  this->pointing_.polar =
+      std::clamp(this->pointing_.polar + polar, kPolarMin, kPolarMax);
+  this->pointing_.azimuthal += azimuthal;
+  this->update_ray_vertices();
   if (this->ray_renderer_) {
-    this->update_ray_vertices();
     this->ray_renderer_->commit();
+  }
+  this->check_surface_intersection();
+}
+void Seat::check_surface_intersection() {
+  auto direction = glm::vec3(this->ray_vertices_[1].x, this->ray_vertices_[1].y,
+      this->ray_vertices_[1].z);
+  auto& surfaces = server::get().surfaces;
+  for (auto it = surfaces.begin(); it != surfaces.end();) {
+    if (const auto& surface = it->lock()) {
+      auto result = surface->intersected_at(this->kOrigin, direction);
+      if (result.has_value()) {
+        LOG_DEBUG("Intersected with surface! pos: %6.3f, %6.3f", result->first,
+            result->second);
+      }
+      ++it;
+    } else {
+      it = surfaces.erase(it);
+    }
   }
 }
 

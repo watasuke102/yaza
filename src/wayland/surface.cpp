@@ -9,13 +9,16 @@
 #include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/quaternion_float.hpp>
+#include <glm/ext/vector_float3.hpp>
 #include <memory>
 #include <optional>
+#include <utility>
 
 #include "common.hpp"
 #include "remote/session.hpp"
 #include "renderer.hpp"
 #include "server.hpp"
+#include "util/intersection.hpp"
 #include "util/time.hpp"
 #include "util/weakable_unique_ptr.hpp"
 
@@ -48,10 +51,10 @@ constexpr auto* kFragShader = GLSL(
 constexpr float kPixelPerMeter    = 9000.F;
 constexpr float kRadiusFromOrigin = 0.4F;
 }  // namespace
-Surface::Surface(uint32_t id)
+Surface::Surface(wl_resource* resource)
     : geom_(glm::vec3(0.F, 0.85F, -kRadiusFromOrigin),
           glm::quat(glm::vec3(0.F, 0.F, 0.F)), glm::vec3{1.F, 1.F, 0.F})
-    , id_(id) {
+    , resource_(resource) {
   if (server::get().remote->has_session()) {
     this->init_renderer();
   }
@@ -69,10 +72,10 @@ Surface::Surface(uint32_t id)
   server::get().remote->listen_session_disconnected(
       this->session_disconnected_listener_);
 
-  LOG_DEBUG("constructor: wl_surface@%u", this->id_);
+  LOG_DEBUG("constructor: wl_surface@%u", wl_resource_get_id(this->resource_));
 }
 Surface::~Surface() {
-  LOG_DEBUG(" destructor: wl_surface@%u", this->id_);
+  LOG_DEBUG(" destructor: wl_surface@%u", wl_resource_get_id(this->resource_));
 }
 void Surface::init_renderer() {
   this->renderer_       = std::make_unique<Renderer>(kVertShader, kFragShader);
@@ -101,38 +104,53 @@ void Surface::init_renderer() {
 void Surface::update_geom() {
   this->geom_.width()  = static_cast<float>(this->tex_width_) / kPixelPerMeter;
   this->geom_.height() = static_cast<float>(this->tex_height_) / kPixelPerMeter;
-  LOG_DEBUG("geom: %d, %d -> %.7f, %.7f", tex_width_, tex_height_,
-      geom_.width(), geom_.height());
+  glm::mat4 scale      = glm::scale(glm::mat4(1.F), this->geom_.size());
+  this->geom_mat_      = this->geom_.mat() * scale;
   if (!this->renderer_) {
     return;
   }
-  glm::mat4 model_mat = glm::scale(glm::mat4(1.F), this->geom_.size());
-  this->renderer_->set_uniform_matrix(0, "surface_scale", model_mat);
+  this->renderer_->set_uniform_matrix(0, "surface_scale", scale);
 }
 
 void Surface::attach(wl_resource* buffer, int32_t /*sx*/, int32_t /*sy*/) {
   // x, y is discarded but `Setting anything other than 0 as x and y arguments
   // is discouraged`, so ignore them for now (TODO?)
   if (buffer == nullptr) {
-    this->pending_.buffer_ = std::nullopt;
+    this->pending_.buffer = std::nullopt;
   } else {
-    this->pending_.buffer_ = buffer;
+    this->pending_.buffer = buffer;
   }
 }
 void Surface::set_callback(wl_resource* resource) {
-  this->pending_.callback_ = resource;
+  this->pending_.callback = resource;
 }
 
+std::optional<std::pair<float, float>> Surface::intersected_at(
+    const glm::vec3& origin, const glm::vec3& direction) {
+  glm::vec3 vert_left_bottom =
+      this->geom_mat_ * glm::vec4(-1.F, -1.F, 0.F, 1.F);
+  glm::vec3 vert_right_bottom =
+      this->geom_mat_ * glm::vec4(+1.F, -1.F, 0.F, 1.F);
+  glm::vec3 vert_left_top = this->geom_mat_ * glm::vec4(-1.F, +1.F, 0.F, 1.F);
+  auto      result        = util::intersected_at(
+      origin, direction, vert_left_bottom, vert_left_top, vert_right_bottom);
+  if (!result.has_value()) {
+    return std::nullopt;
+  }
+  return std::make_pair(
+      static_cast<float>(this->tex_width_) * (1.F - result->u),
+      static_cast<float>(this->tex_height_) * result->v);
+}
 void Surface::listen_committed(util::Listener<std::nullptr_t*>& listener) {
-  this->events_.committed_.add_listener(listener);
+  this->events_.committed.add_listener(listener);
 }
 
 void Surface::commit() {
-  if (this->pending_.buffer_.has_value()) {
+  if (this->pending_.buffer.has_value()) {
     if (this->texture_.has_data()) {
       this->texture_.reset();
     }
-    auto*          buffer     = this->pending_.buffer_.value();
+    auto*          buffer     = this->pending_.buffer.value();
     wl_shm_buffer* shm_buffer = wl_shm_buffer_get(buffer);
     auto           format     = wl_shm_buffer_get_format(shm_buffer);
     if (format == WL_SHM_FORMAT_ARGB8888 || format == WL_SHM_FORMAT_XRGB8888) {
@@ -144,14 +162,14 @@ void Surface::commit() {
       LOG_ERR("yaza does not support surface buffer format (%u)", format);
     }
     wl_buffer_send_release(buffer);
-    this->pending_.buffer_ = std::nullopt;
+    this->pending_.buffer = std::nullopt;
   }
 
-  if (this->pending_.callback_.has_value()) {
-    auto* callback = this->pending_.callback_.value();
+  if (this->pending_.callback.has_value()) {
+    auto* callback = this->pending_.callback.value();
     wl_callback_send_done(callback, util::now_msec());
     wl_resource_destroy(callback);
-    this->pending_.callback_ = std::nullopt;
+    this->pending_.callback = std::nullopt;
   }
 
   if (this->renderer_ != nullptr && this->texture_.has_data()) {
@@ -160,7 +178,7 @@ void Surface::commit() {
     this->renderer_->commit();
   }
 
-  this->events_.committed_.emit(nullptr);
+  this->events_.committed.emit(nullptr);
 }
 
 namespace {
@@ -245,7 +263,8 @@ void create(wl_client* client, int version, uint32_t id) {
     wl_client_post_no_memory(client);
     return;
   }
-  auto* surface = new util::UniPtr<Surface>(id);
+  auto* surface = new util::UniPtr<Surface>(surface_resource);
   wl_resource_set_implementation(surface_resource, &kImpl, surface, destroy);
+  server::get().surfaces.emplace_back(surface->weak());
 }
 }  // namespace yaza::wayland::surface

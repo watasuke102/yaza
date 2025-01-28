@@ -5,8 +5,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <glm/ext/vector_float3.hpp>
 #include <memory>
 #include <optional>
+#include <utility>
 
 #include "common.hpp"
 #include "remote/session.hpp"
@@ -19,23 +21,25 @@ namespace yaza::wayland::surface {
 class Surface {
  public:
   DISABLE_MOVE_AND_COPY(Surface);
-  explicit Surface(uint32_t id);
+  explicit Surface(wl_resource* resource);
   ~Surface();
 
   void attach(wl_resource* buffer, int32_t sx, int32_t sy);
   void set_callback(wl_resource* resource);
   void commit();
 
+  std::optional<std::pair<float, float>> intersected_at(
+      const glm::vec3& origin, const glm::vec3& direction);
   void listen_committed(util::Listener<std::nullptr_t*>& listener);
 
  private:
   struct {
-    util::Signal<std::nullptr_t*> committed_;
+    util::Signal<std::nullptr_t*> committed;
   } events_;
 
   struct {
-    std::optional<wl_resource*> buffer_   = std::nullopt;
-    std::optional<wl_resource*> callback_ = std::nullopt;
+    std::optional<wl_resource*> buffer   = std::nullopt;
+    std::optional<wl_resource*> callback = std::nullopt;
   } pending_;
 
   util::DataPool texture_;
@@ -43,13 +47,14 @@ class Surface {
   uint32_t       tex_height_;
 
   util::Box                 geom_;
+  glm::mat4                 geom_mat_;  // use on checking for intersection
   void                      update_geom();
   std::unique_ptr<Renderer> renderer_;
   void                      init_renderer();
 
   util::Listener<remote::Session*> session_established_listener_;
   util::Listener<std::nullptr_t*>  session_disconnected_listener_;
-  uint32_t                         id_;
+  wl_resource*                     resource_;
 };
 
 void create(wl_client* client, int version, uint32_t id);

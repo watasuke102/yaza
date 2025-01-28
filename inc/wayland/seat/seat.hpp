@@ -2,6 +2,7 @@
 
 #include <wayland-server-core.h>
 
+#include <glm/ext/vector_float3.hpp>
 #include <memory>
 #include <numbers>
 
@@ -21,14 +22,16 @@ class Seat {
   void move_rel_pointing(float polar, float azimuthal);
 
  private:
+  const glm::vec3 kOrigin = glm::vec3(0.F, 0.849F, -0.001F);
   struct {
-    float polar_     = std::numbers::pi / 2.F;  // [0, pi]
-    float azimuthal_ = std::numbers::pi;        // x-z plane, [0, 2pi]
+    float polar     = std::numbers::pi / 2.F;  // [0, pi]
+    float azimuthal = std::numbers::pi;        // x-z plane, [0, 2pi]
   } pointing_;
   std::vector<BufferElement> ray_vertices_;
   std::unique_ptr<Renderer>  ray_renderer_;
   void                       init_ray_renderer();
   void                       update_ray_vertices();
+  void                       check_surface_intersection();
 
   std::unique_ptr<InputListenServer> input_listen_server_;
 
