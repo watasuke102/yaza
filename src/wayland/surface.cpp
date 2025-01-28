@@ -133,13 +133,12 @@ std::optional<std::pair<float, float>> Surface::intersected_at(
       this->geom_mat_ * glm::vec4(+1.F, -1.F, 0.F, 1.F);
   glm::vec3 vert_left_top = this->geom_mat_ * glm::vec4(-1.F, +1.F, 0.F, 1.F);
   auto      result        = util::intersected_at(
-      origin, direction, vert_left_bottom, vert_left_top, vert_right_bottom);
+      origin, direction, vert_left_bottom, vert_right_bottom, vert_left_top);
   if (!result.has_value()) {
     return std::nullopt;
   }
-  return std::make_pair(
-      static_cast<float>(this->tex_width_) * (1.F - result->u),
-      static_cast<float>(this->tex_height_) * result->v);
+  return std::make_pair(static_cast<float>(this->tex_width_) * result->u,
+      static_cast<float>(this->tex_height_) * (1.F - result->v));
 }
 void Surface::listen_committed(util::Listener<std::nullptr_t*>& listener) {
   this->events_.committed.add_listener(listener);

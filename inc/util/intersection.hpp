@@ -13,5 +13,5 @@ struct IntersectInfo {
 /// @param direction The direction of the vector
 std::optional<IntersectInfo> intersected_at(const glm::vec3& origin,
     const glm::vec3& direction, const glm::vec3& vert_left_bottom,
-    const glm::vec3& vert_left_top, const glm::vec3& vert_right_bottom);
+    const glm::vec3& vert_right_bottom, const glm::vec3& vert_left_top);
 }  // namespace yaza::util

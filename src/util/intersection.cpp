@@ -6,8 +6,6 @@
 #include <glm/gtx/vector_query.hpp>
 #include <optional>
 
-#include "common.hpp"
-
 namespace yaza::util {
 // using Möller–Trumbore intersection algorithm
 std::optional<IntersectInfo> intersected_at(const glm::vec3& o,
