@@ -52,8 +52,8 @@ constexpr float kPixelPerMeter    = 9000.F;
 constexpr float kRadiusFromOrigin = 0.4F;
 }  // namespace
 Surface::Surface(wl_resource* resource)
-    : geom_(glm::vec3(0.F, 0.85F, -kRadiusFromOrigin),
-          glm::quat(glm::vec3(0.F, 0.F, 0.F)), glm::vec3{1.F, 1.F, 0.F})
+    : geom_(glm::vec3(0.F, 0.85F, 0.F), glm::quat(glm::vec3(0.F, 0.F, 0.F)),
+          glm::vec3{1.F, 1.F, 0.F})
     , resource_(resource) {
   if (server::get().remote->has_session()) {
     this->init_renderer();
@@ -78,20 +78,17 @@ Surface::~Surface() {
   LOG_DEBUG(" destructor: wl_surface@%u", wl_resource_get_id(this->resource_));
 }
 void Surface::init_renderer() {
-  this->renderer_       = std::make_unique<Renderer>(kVertShader, kFragShader);
-  constexpr float kSize = 1.F;
-  this->renderer_->move_abs(this->geom_.pos());
-  this->renderer_->set_rot(this->geom_.rot());
+  this->renderer_ = std::make_unique<Renderer>(kVertShader, kFragShader);
   this->renderer_->set_vertex(std::vector<BufferElement>{
       /*
         3 -- 0
         |    |
         2 -- 1
         */
-      {.x = +kSize, .y = +kSize, .z = -0.F, .u = 1.F, .v = 0.F},
-      {.x = +kSize, .y = -kSize, .z = -0.F, .u = 1.F, .v = 1.F},
-      {.x = -kSize, .y = -kSize, .z = -0.F, .u = 0.F, .v = 1.F},
-      {.x = -kSize, .y = +kSize, .z = -0.F, .u = 0.F, .v = 0.F},
+      {.x = +1.F, .y = +1.F, .z = -0.F, .u = 1.F, .v = 0.F},
+      {.x = +1.F, .y = -1.F, .z = -0.F, .u = 1.F, .v = 1.F},
+      {.x = -1.F, .y = -1.F, .z = -0.F, .u = 0.F, .v = 1.F},
+      {.x = -1.F, .y = +1.F, .z = -0.F, .u = 0.F, .v = 0.F},
   });
   this->renderer_->request_draw_arrays(GL_TRIANGLE_FAN, 0, 4);
   this->update_geom();
@@ -102,6 +99,10 @@ void Surface::init_renderer() {
   }
 }
 void Surface::update_geom() {
+  this->geom_.x() = kRadiusFromOrigin * sin(this->azimuthal_);
+  this->geom_.z() = kRadiusFromOrigin * cos(this->azimuthal_);
+  this->geom_.rot() =
+      glm::quat({0.F, std::numbers::pi + this->azimuthal_, 0.F});
   this->geom_.width()  = static_cast<float>(this->tex_width_) / kPixelPerMeter;
   this->geom_.height() = static_cast<float>(this->tex_height_) / kPixelPerMeter;
   glm::mat4 scale      = glm::scale(glm::mat4(1.F), this->geom_.size());
@@ -109,7 +110,17 @@ void Surface::update_geom() {
   if (!this->renderer_) {
     return;
   }
+  this->renderer_->move_abs(this->geom_.pos());
+  this->renderer_->set_rot(this->geom_.rot());
   this->renderer_->set_uniform_matrix(0, "surface_scale", scale);
+}
+
+void Surface::move(float /*polar*/, float azimuthal) {
+  this->azimuthal_ += azimuthal;
+  this->update_geom();
+  if (this->renderer_) {
+    this->renderer_->commit();
+  }
 }
 
 void Surface::attach(wl_resource* buffer, int32_t /*sx*/, int32_t /*sy*/) {

@@ -75,7 +75,30 @@ Seat::Seat()
   this->input_listen_server_ = std::make_unique<InputListenServer>();
 }
 
+void Seat::request_start_move(wl_client* client) {
+  auto* surface = this->focused_surface_.lock();
+  if (!surface) {
+    return;
+  }
+  if (surface->client() != client) {
+    return;
+  }
+  if (auto* wl_pointer = this->pointer_resources[surface->client()]) {
+    wl_pointer_send_leave(
+        wl_pointer, server::get().next_serial(), surface->resource());
+  }
+  this->surface_state_ = FocusedSurfaceState::MOVING;
+}
+
 void Seat::mouse_button(wl_pointer_button_state state) {
+  if (this->surface_state_ == FocusedSurfaceState::MOVING &&
+      state == WL_POINTER_BUTTON_STATE_RELEASED) {
+    this->surface_state_ = FocusedSurfaceState::DEFAULT;
+    this->focused_surface_.reset();
+    check_surface_intersection();
+    return;
+  }
+
   auto* surface = this->focused_surface_.lock();
   if (!surface) {
     return;
@@ -83,6 +106,7 @@ void Seat::mouse_button(wl_pointer_button_state state) {
   if (auto* wl_pointer = this->pointer_resources[surface->client()]) {
     wl_pointer_send_button(wl_pointer, server::get().next_serial(),
         util::now_msec(), BTN_LEFT, state);
+    wl_pointer_send_frame(wl_pointer);
   }
 }
 
@@ -96,7 +120,17 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
   if (this->ray_renderer_) {
     this->ray_renderer_->commit();
   }
-  this->check_surface_intersection();
+
+  switch (this->surface_state_) {
+    case FocusedSurfaceState::DEFAULT:
+      this->check_surface_intersection();
+      break;
+    case FocusedSurfaceState::MOVING:
+      if (auto* surface = this->focused_surface_.lock()) {
+        surface->move(polar, azimuthal);
+      }
+      break;
+  }
 }
 void Seat::check_surface_intersection() {
   auto direction = glm::vec3(this->ray_vertices_[1].x, this->ray_vertices_[1].y,
@@ -119,6 +153,7 @@ void Seat::check_surface_intersection() {
       auto y = wl_fixed_from_double(result->second);
       this->set_focused_surface(surface_weakptr, wl_pointer, x, y);
       wl_pointer_send_motion(wl_pointer, util::now_msec(), x, y);
+      wl_pointer_send_frame(wl_pointer);
       return;
     } else {  // NOLINT(readability-else-after-return): ???
       it = surfaces.erase(it);
@@ -186,7 +221,6 @@ void Seat::update_ray_vertices() {
 
 namespace {
 void get_pointer(wl_client* client, wl_resource* /*resource*/, uint32_t id) {
-  LOG_WARN("get_pointer");
   pointer::create(client, id);
 }
 void get_keyboard(

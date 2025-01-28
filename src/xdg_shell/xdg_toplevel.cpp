@@ -1,8 +1,10 @@
 #include "xdg_shell/xdg_toplevel.hpp"
 
 #include <wayland-server-protocol.h>
+#include <wayland-util.h>
 
 #include "common.hpp"
+#include "server.hpp"
 #include "wayland-server-core.h"
 #include "xdg-shell-protocol.h"
 
@@ -27,9 +29,9 @@ void show_window_menu(wl_client* /*client*/, wl_resource* /*resource*/,
     wl_resource* /*seat*/, uint32_t /*serial*/, int32_t /*x*/, int32_t /*y*/) {
   // TODO
 }
-void move(wl_client* /*client*/, wl_resource* /*resource*/,
-    wl_resource* /*seat*/, uint32_t /*serial*/) {
-  // TODO
+void move(wl_client* client, wl_resource* /*resource*/, wl_resource* /*seat*/,
+    uint32_t /*serial*/) {
+  server::get().seat->request_start_move(client);
 }
 void resize(wl_client* /*client*/, wl_resource* /*resource*/,
     wl_resource* /*seat*/, uint32_t /*serial*/, uint32_t /*edges*/) {

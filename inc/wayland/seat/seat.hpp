@@ -19,6 +19,11 @@
 #include "wayland/surface.hpp"
 
 namespace yaza::wayland::seat {
+enum class FocusedSurfaceState : uint8_t {
+  DEFAULT,
+  MOVING,
+};
+
 class Seat {
  public:
   DISABLE_MOVE_AND_COPY(Seat);
@@ -28,11 +33,13 @@ class Seat {
   std::unordered_map<wl_client*, wl_resource* /*wl_pointer*/> pointer_resources;
 
   void mouse_button(wl_pointer_button_state state);
+  void request_start_move(wl_client* client);
   void move_rel_pointing(float polar, float azimuthal);
 
  private:
   void check_surface_intersection();
 
+  FocusedSurfaceState             surface_state_ = FocusedSurfaceState::DEFAULT;
   util::WeakPtr<surface::Surface> focused_surface_;
   void set_focused_surface(util::WeakPtr<surface::Surface> surface,
       wl_resource* wl_pointer, wl_fixed_t x, wl_fixed_t y);

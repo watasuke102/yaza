@@ -28,6 +28,7 @@ class Surface {
   void set_callback(wl_resource* resource);
   void commit();
 
+  void                                   move(float polar, float azimuthal);
   std::optional<std::pair<float, float>> intersected_at(
       const glm::vec3& origin, const glm::vec3& direction);
   void listen_committed(util::Listener<std::nullptr_t*>& listener);
@@ -53,6 +54,7 @@ class Surface {
   uint32_t       tex_width_;
   uint32_t       tex_height_;
 
+  float                     azimuthal_ = std::numbers::pi;
   util::Box                 geom_;
   glm::mat4                 geom_mat_;  // use on checking for intersection
   void                      update_geom();
