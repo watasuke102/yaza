@@ -32,6 +32,13 @@ class Surface {
       const glm::vec3& origin, const glm::vec3& direction);
   void listen_committed(util::Listener<std::nullptr_t*>& listener);
 
+  wl_resource* resource() {
+    return this->resource_;
+  }
+  wl_client* client() {
+    return wl_resource_get_client(this->resource_);
+  }
+
  private:
   struct {
     util::Signal<std::nullptr_t*> committed;

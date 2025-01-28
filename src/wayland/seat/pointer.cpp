@@ -5,17 +5,18 @@
 #include <wayland-server.h>
 
 #include "common.hpp"
+#include "server.hpp"
 
 namespace yaza::wayland::seat::pointer {
 namespace {
 void set_cursor(wl_client* /*client*/, wl_resource* /*resource*/,
     uint32_t /*serial*/, wl_resource* /*surface*/, int32_t /*hotspot_x*/,
     int32_t /*hotspot_y*/) {
-  LOG_WARN("set_cursor");
   // TODO
 }
-void release(wl_client* /*client*/, wl_resource* resource) {
+void release(wl_client* client, wl_resource* resource) {
   wl_resource_destroy(resource);
+  server::get().seat->pointer_resources[client] = nullptr;
 }
 constexpr struct wl_pointer_interface kImpl = {
     .set_cursor = set_cursor,
@@ -31,6 +32,7 @@ void create(wl_client* client, uint32_t id) {
     return;
   }
   wl_resource_set_implementation(resource, &kImpl, nullptr, nullptr);
+  server::get().seat->pointer_resources[client] = resource;
   LOG_DEBUG("created: wl_pointer@%d", id);
 }
 }  // namespace yaza::wayland::seat::pointer

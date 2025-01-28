@@ -4,6 +4,7 @@
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
 #include <wayland-server.h>
+#include <wayland-util.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -13,13 +14,18 @@
 #include <glm/ext/vector_float3.hpp>
 #include <glm/geometric.hpp>
 #include <memory>
+#include <optional>
+#include <utility>
 #include <vector>
 
 #include "common.hpp"
 #include "renderer.hpp"
 #include "server.hpp"
+#include "util/time.hpp"
+#include "util/weakable_unique_ptr.hpp"
 #include "wayland/seat/input_listen_server.hpp"
 #include "wayland/seat/pointer.hpp"
+#include "wayland/surface.hpp"
 
 namespace yaza::wayland::seat {
 namespace {
@@ -68,6 +74,70 @@ Seat::Seat()
   this->input_listen_server_ = std::make_unique<InputListenServer>(this);
 }
 
+void Seat::move_rel_pointing(float polar, float azimuthal) {
+  constexpr float kPolarMin = std::numbers::pi / 8.F;
+  constexpr float kPolarMax = std::numbers::pi - kPolarMin;
+  this->pointing_.polar =
+      std::clamp(this->pointing_.polar + polar, kPolarMin, kPolarMax);
+  this->pointing_.azimuthal += azimuthal;
+  this->update_ray_vertices();
+  if (this->ray_renderer_) {
+    this->ray_renderer_->commit();
+  }
+  this->check_surface_intersection();
+}
+void Seat::check_surface_intersection() {
+  auto direction = glm::vec3(this->ray_vertices_[1].x, this->ray_vertices_[1].y,
+      this->ray_vertices_[1].z);
+  auto& surfaces = server::get().surfaces;
+
+  for (auto it = surfaces.begin(); it != surfaces.end();) {
+    if (auto* surface = it->lock()) {
+      util::WeakPtr<surface::Surface> surface_weakptr = *it;
+      ++it;
+      auto result = surface->intersected_at(this->kOrigin, direction);
+      if (!result.has_value()) {
+        continue;
+      }
+      wl_resource* wl_pointer = this->pointer_resources[surface->client()];
+      if (!wl_pointer) {
+        return;
+      }
+      auto x = wl_fixed_from_double(result->first);
+      auto y = wl_fixed_from_double(result->second);
+      this->set_focused_surface(surface_weakptr, wl_pointer, x, y);
+      wl_pointer_send_motion(wl_pointer, util::now_msec(), x, y);
+      return;
+    } else {  // NOLINT(readability-else-after-return): ???
+      it = surfaces.erase(it);
+    }
+  }
+  // there is no intersected surface
+  this->try_leave_focused_surface();
+  this->focused_surface_.reset();
+}
+
+void Seat::set_focused_surface(util::WeakPtr<surface::Surface> surface,
+    wl_resource* wl_pointer, wl_fixed_t x, wl_fixed_t y) {
+  if (surface == this->focused_surface_) {
+    return;
+  }
+  wl_pointer_send_enter(wl_pointer, server::get().next_serial(),
+      surface.lock()->resource(), x, y);
+  this->try_leave_focused_surface();
+  this->focused_surface_.swap(surface);
+}
+void Seat::try_leave_focused_surface() {
+  wayland::surface::Surface* surface = this->focused_surface_.lock();
+  if (!surface) {
+    return;
+  }
+  if (auto* wl_pointer = this->pointer_resources[surface->client()]) {
+    wl_pointer_send_leave(
+        wl_pointer, server::get().next_serial(), surface->resource());
+  }
+}
+
 /*
          +y  -z (head facing direction)
           ^  /
@@ -99,35 +169,6 @@ void Seat::update_ray_vertices() {
       r * sin(this->pointing_.polar) * cos(this->pointing_.azimuthal);
   if (this->ray_renderer_) {
     this->ray_renderer_->set_vertex(this->ray_vertices_);
-  }
-}
-void Seat::move_rel_pointing(float polar, float azimuthal) {
-  constexpr float kPolarMin = std::numbers::pi / 8.F;
-  constexpr float kPolarMax = std::numbers::pi - kPolarMin;
-  this->pointing_.polar =
-      std::clamp(this->pointing_.polar + polar, kPolarMin, kPolarMax);
-  this->pointing_.azimuthal += azimuthal;
-  this->update_ray_vertices();
-  if (this->ray_renderer_) {
-    this->ray_renderer_->commit();
-  }
-  this->check_surface_intersection();
-}
-void Seat::check_surface_intersection() {
-  auto direction = glm::vec3(this->ray_vertices_[1].x, this->ray_vertices_[1].y,
-      this->ray_vertices_[1].z);
-  auto& surfaces = server::get().surfaces;
-  for (auto it = surfaces.begin(); it != surfaces.end();) {
-    if (const auto& surface = it->lock()) {
-      auto result = surface->intersected_at(this->kOrigin, direction);
-      if (result.has_value()) {
-        LOG_DEBUG("Intersected with surface! pos: %6.3f, %6.3f", result->first,
-            result->second);
-      }
-      ++it;
-    } else {
-      it = surfaces.erase(it);
-    }
   }
 }
 

@@ -30,11 +30,10 @@ class Server {
   wl_event_loop* loop();
 
   remote::Remote*                                     remote;
+  wayland::seat::Seat*                                seat;
   std::list<util::WeakPtr<wayland::surface::Surface>> surfaces;
 
  private:
-  wayland::seat::Seat* seat_ = nullptr;
-
   Server()  = default;
   ~Server() = default;
   static Server instance;

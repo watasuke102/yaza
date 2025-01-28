@@ -55,6 +55,19 @@ class WeakPtr {
     }
     return nullptr;
   }
+  void reset() {
+    this->ptr_.reset();
+  }
+  void swap(WeakPtr<T>& other) noexcept {
+    this->ptr_.swap(other.ptr_);
+  }
+
+  bool operator==(const WeakPtr<T>& other) {
+    return this->lock() == other.lock();
+  }
+  bool operator!=(const WeakPtr<T>& other) {
+    return !(this == other);
+  }
 
  private:
   std::weak_ptr<T> ptr_;

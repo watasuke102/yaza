@@ -1,16 +1,22 @@
 #pragma once
 
 #include <wayland-server-core.h>
+#include <wayland-server.h>
+#include <wayland-util.h>
 
 #include <glm/ext/vector_float3.hpp>
 #include <memory>
 #include <numbers>
+#include <optional>
+#include <unordered_map>
 
 #include "common.hpp"
 #include "remote/session.hpp"
 #include "renderer.hpp"
 #include "util/signal.hpp"
+#include "util/weakable_unique_ptr.hpp"
 #include "wayland/seat/input_listen_server.hpp"
+#include "wayland/surface.hpp"
 
 namespace yaza::wayland::seat {
 class Seat {
@@ -19,9 +25,18 @@ class Seat {
   Seat();
   ~Seat() = default;
 
+  std::unordered_map<wl_client*, wl_resource* /*wl_pointer*/> pointer_resources;
+
   void move_rel_pointing(float polar, float azimuthal);
 
  private:
+  void check_surface_intersection();
+
+  util::WeakPtr<surface::Surface> focused_surface_;
+  void set_focused_surface(util::WeakPtr<surface::Surface> surface,
+      wl_resource* wl_pointer, wl_fixed_t x, wl_fixed_t y);
+  void try_leave_focused_surface();
+
   const glm::vec3 kOrigin = glm::vec3(0.F, 0.849F, -0.001F);
   struct {
     float polar     = std::numbers::pi / 2.F;  // [0, pi]
@@ -31,7 +46,6 @@ class Seat {
   std::unique_ptr<Renderer>  ray_renderer_;
   void                       init_ray_renderer();
   void                       update_ray_vertices();
-  void                       check_surface_intersection();
 
   std::unique_ptr<InputListenServer> input_listen_server_;
 

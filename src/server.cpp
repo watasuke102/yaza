@@ -42,7 +42,7 @@ bool Server::init() {
   wl_display_init_shm(instance.wl_display_);
 
   instance.remote = new remote::Remote(instance.loop());
-  instance.seat_  = new wayland::seat::Seat();
+  instance.seat   = new wayland::seat::Seat();
 
   if (!wayland::init(instance.wl_display_)) {
     BAIL(nullptr);
@@ -95,7 +95,7 @@ void Server::terminate() {
   if (this->sigterm_source_) {
     wl_event_source_remove(sigterm_source_);
   }
-  delete this->seat_;
+  delete this->seat;
   if (this->wl_display_) {
     wl_display_destroy(this->wl_display_);
   }
