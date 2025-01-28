@@ -1,13 +1,13 @@
 #pragma once
 
 #include <wayland-server-core.h>
+#include <wayland-server-protocol.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
 
 #include <glm/ext/vector_float3.hpp>
 #include <memory>
 #include <numbers>
-#include <optional>
 #include <unordered_map>
 
 #include "common.hpp"
@@ -27,6 +27,7 @@ class Seat {
 
   std::unordered_map<wl_client*, wl_resource* /*wl_pointer*/> pointer_resources;
 
+  void mouse_button(wl_pointer_button_state state);
   void move_rel_pointing(float polar, float azimuthal);
 
  private:

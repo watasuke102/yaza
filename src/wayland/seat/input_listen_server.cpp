@@ -9,6 +9,7 @@
 #include <sys/epoll.h>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
+#include <wayland-server-protocol.h>
 
 #include <cerrno>
 #include <chrono>
@@ -19,10 +20,10 @@
 #include <thread>
 
 #include "common.hpp"
-#include "wayland/seat/seat.hpp"
+#include "server.hpp"
 
 namespace yaza::wayland::seat {
-InputListenServer::InputListenServer(Seat* seat) : seat_(seat) {
+InputListenServer::InputListenServer() {
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define BAIL(err_prefix)                                                       \
   LOG_ERR(err_prefix ": %s", std::strerror(errno));                            \
@@ -134,9 +135,18 @@ void InputListenServer::handle_events(int client) const {
     auto* event = (Event*)buf.data();
     switch (event->type) {
       case EventType::MOUSE_MOVE:
-        constexpr float kDivider = 100.F;
-        this->seat_->move_rel_pointing(-event->data.movement[1] / kDivider,
-            -event->data.movement[0] / kDivider);
+        server::get().seat->move_rel_pointing(
+            -event->data.movement[1] / kMouseMovementDivider,
+            -event->data.movement[0] / kMouseMovementDivider);
+        break;
+      case EventType::MOUSE_DOWN:
+        server::get().seat->mouse_button(WL_POINTER_BUTTON_STATE_PRESSED);
+        break;
+      case EventType::MOUSE_UP:
+        server::get().seat->mouse_button(WL_POINTER_BUTTON_STATE_RELEASED);
+        break;
+      default:
+        LOG_WARN("Unknown event type: %u", static_cast<uint32_t>(event->type));
         break;
     }
   }

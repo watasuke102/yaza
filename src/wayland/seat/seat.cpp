@@ -1,6 +1,7 @@
 #include "wayland/seat/seat.hpp"
 
 #include <GLES3/gl32.h>
+#include <linux/input-event-codes.h>
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
 #include <wayland-server.h>
@@ -71,7 +72,18 @@ Seat::Seat()
       });
   server::get().remote->listen_session_disconnected(
       this->session_disconnected_listener_);
-  this->input_listen_server_ = std::make_unique<InputListenServer>(this);
+  this->input_listen_server_ = std::make_unique<InputListenServer>();
+}
+
+void Seat::mouse_button(wl_pointer_button_state state) {
+  auto* surface = this->focused_surface_.lock();
+  if (!surface) {
+    return;
+  }
+  if (auto* wl_pointer = this->pointer_resources[surface->client()]) {
+    wl_pointer_send_button(wl_pointer, server::get().next_serial(),
+        util::now_msec(), BTN_LEFT, state);
+  }
 }
 
 void Seat::move_rel_pointing(float polar, float azimuthal) {
