@@ -19,8 +19,8 @@
 
 namespace yaza {
 struct BufferElement {
-  float x_, y_, z_;
-  float u_, v_;
+  float x, y, z;
+  float u, v;
 };
 
 // should be created after Session is established, and

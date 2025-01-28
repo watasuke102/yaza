@@ -41,21 +41,21 @@ VirtualObject::VirtualObject() {
     wl_resource* callback = nullptr;
     wl_resource* tmp      = nullptr;
     wl_resource_for_each_safe(
-        callback, tmp, &this->current_.frame_callback_list_) {
+        callback, tmp, &this->current_.frame_callback_list) {
       wl_callback_send_done(callback, now_msec);
       wl_resource_destroy(callback);
     }
   });
   server::get().remote->listen_session_frame(this->session_frame_listener_);
 
-  wl_list_init(&this->pending_.frame_callback_list_);
-  wl_list_init(&this->current_.frame_callback_list_);
+  wl_list_init(&this->pending_.frame_callback_list);
+  wl_list_init(&this->current_.frame_callback_list);
   LOG_DEBUG("created: VirtualObject");
 }
 VirtualObject::~VirtualObject() {
   LOG_DEBUG("destructor: VirtualObject");
-  wl_list_remove(&this->pending_.frame_callback_list_);
-  wl_list_remove(&this->current_.frame_callback_list_);
+  wl_list_remove(&this->pending_.frame_callback_list);
+  wl_list_remove(&this->current_.frame_callback_list);
   this->destroying_ = true;  // disable removing RenderingUnit from list
   for (auto* unit : this->rendering_unit_list_) {
     delete unit;
@@ -63,11 +63,11 @@ VirtualObject::~VirtualObject() {
 }
 
 void VirtualObject::commit() {
-  wl_list_insert_list(&this->current_.frame_callback_list_,
-      &this->pending_.frame_callback_list_);
-  wl_list_init(&this->pending_.frame_callback_list_);
+  wl_list_insert_list(
+      &this->current_.frame_callback_list, &this->pending_.frame_callback_list);
+  wl_list_init(&this->pending_.frame_callback_list);
   this->committed_ = true;
-  this->events_.committed_.emit(nullptr);
+  this->events_.committed.emit(nullptr);
   if (server::get().remote->has_session()) {
     // sync only updated (damaged) data
     this->sync(false);
@@ -107,12 +107,12 @@ void VirtualObject::remove_rendering_unit(
   }
 }
 void VirtualObject::queue_frame_callback(wl_resource* callback_resource) const {
-  wl_list_insert(this->pending_.frame_callback_list_.prev,
+  wl_list_insert(this->pending_.frame_callback_list.prev,
       wl_resource_get_link(callback_resource));
 }
 
 void VirtualObject::listen_commited(util::Listener<std::nullptr_t*>& listener) {
-  this->events_.committed_.add_listener(listener);
+  this->events_.committed.add_listener(listener);
 }
 
 namespace {
@@ -138,7 +138,7 @@ void frame(wl_client* client, wl_resource* resource, uint32_t callback) {
   auto* self = static_cast<VirtualObject*>(wl_resource_get_user_data(resource));
   self->queue_frame_callback(callback_resource);
 }
-const struct zwn_virtual_object_interface kImpl = {
+constexpr struct zwn_virtual_object_interface kImpl = {
     .destroy = destroy,
     .commit  = commit,
     .frame   = frame,

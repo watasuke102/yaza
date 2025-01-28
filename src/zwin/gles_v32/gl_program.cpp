@@ -31,23 +31,23 @@ GlProgram::~GlProgram() {
 }
 
 void GlProgram::commit() {
-  if (!this->pending_.damaged_) {
+  if (!this->pending_.damaged) {
     return;
   }
-  if (this->pending_.should_link_) {
-    if (this->current_.linked_) {
+  if (this->pending_.should_link) {
+    if (this->current_.linked) {
       wl_resource_post_error(this->resource_, ZWN_GL_PROGRAM_ERROR_RELINK,
           "GlProgram has already been linked");
       return;
     }
-    this->current_.should_link_ = true;
-    this->current_.linked_      = true;
+    this->current_.should_link = true;
+    this->current_.linked      = true;
   }
-  this->current_.shaders_.splice(
-      this->current_.shaders_.end(), this->pending_.shaders_);
-  this->pending_.shaders_.clear();
-  this->pending_.damaged_     = false;
-  this->pending_.should_link_ = false;
+  this->current_.shaders.splice(
+      this->current_.shaders.end(), this->pending_.shaders);
+  this->pending_.shaders.clear();
+  this->pending_.damaged     = false;
+  this->pending_.should_link = false;
 }
 
 void GlProgram::sync(bool force_sync) {
@@ -55,13 +55,13 @@ void GlProgram::sync(bool force_sync) {
     this->proxy_ = zen::remote::server::CreateGlProgram(
         server::get().remote->channel_nonnull());
   }
-  bool should_attach = force_sync || this->current_.should_link_;
+  bool should_attach = force_sync || this->current_.should_link;
   // for (auto* shader : this->current_.shaders_) {
-  for (auto it = this->current_.shaders_.begin();
-      it != this->current_.shaders_.end();) {
+  for (auto it = this->current_.shaders.begin();
+      it != this->current_.shaders.end();) {
     auto* shader = it->lock();
     if (!shader) {
-      it = this->current_.shaders_.erase(it);
+      it = this->current_.shaders.erase(it);
       continue;
     }
     shader->sync();
@@ -74,16 +74,16 @@ void GlProgram::sync(bool force_sync) {
     return;
   }
   this->proxy_->get()->GlLinkProgram();
-  this->current_.should_link_ = false;
+  this->current_.should_link = false;
 }
 
 void GlProgram::request_link() {
-  this->pending_.damaged_     = true;
-  this->pending_.should_link_ = true;
+  this->pending_.damaged     = true;
+  this->pending_.should_link = true;
 }
 void GlProgram::attach_shader(util::WeakPtr<gl_shader::GlShader>&& shader) {
-  this->pending_.damaged_ = true;
-  this->pending_.shaders_.emplace_back(std::move(shader));
+  this->pending_.damaged = true;
+  this->pending_.shaders.emplace_back(std::move(shader));
 }
 
 namespace {
@@ -105,7 +105,7 @@ void link(wl_client* /*client*/, wl_resource* resource) {
       wl_resource_get_user_data(resource));
   (*self)->request_link();
 }
-const struct zwn_gl_program_interface kImpl = {
+constexpr struct zwn_gl_program_interface kImpl = {
     .destroy       = destroy,
     .attach_shader = attach_shader,
     .link          = link,

@@ -34,22 +34,22 @@ GlTexture::~GlTexture() {
 }
 
 void GlTexture::commit() {
-  if (this->pending_.data_.has_resource()) {
-    if (this->current_.data_.has_data()) {
-      this->current_.data_.reset();
+  if (this->pending_.data.has_resource()) {
+    if (this->current_.data.has_data()) {
+      this->current_.data.reset();
     }
-    this->current_.image_2d_ = this->pending_.image_2d_;
-    this->current_.data_.from_weak_resource(this->pending_.data_);
-    this->current_.data_changed_ = true;
+    this->current_.image_2d = this->pending_.image_2d;
+    this->current_.data.from_weak_resource(this->pending_.data);
+    this->current_.data_changed = true;
 
-    this->pending_.data_.zwn_buffer_send_release();
-    this->pending_.data_.unlink();
+    this->pending_.data.zwn_buffer_send_release();
+    this->pending_.data.unlink();
   }
 
-  if (this->pending_.mipmap_target_ != 0) {
-    this->current_.mipmap_target_         = this->pending_.mipmap_target_;
-    this->current_.mipmap_target_changed_ = true;
-    this->pending_.mipmap_target_         = 0;
+  if (this->pending_.mipmap_target != 0) {
+    this->current_.mipmap_target         = this->pending_.mipmap_target;
+    this->current_.mipmap_target_changed = true;
+    this->pending_.mipmap_target         = 0;
   }
 }
 
@@ -58,27 +58,26 @@ void GlTexture::sync(bool force_sync) {
     this->proxy_ = zen::remote::server::CreateGlTexture(
         server::get().remote->channel_nonnull());
   }
-  if (force_sync || this->current_.data_changed_) {
-    this->proxy_->get()->GlTexImage2D(this->current_.image_2d_.target_,
-        this->current_.image_2d_.level_,
-        this->current_.image_2d_.internal_format_,
-        this->current_.image_2d_.width_, this->current_.image_2d_.height_,
-        this->current_.image_2d_.border_, this->current_.image_2d_.format_,
-        this->current_.image_2d_.type_, this->current_.data_.create_buffer());
-    this->current_.data_changed_ = false;
+  if (force_sync || this->current_.data_changed) {
+    this->proxy_->get()->GlTexImage2D(this->current_.image_2d.target,
+        this->current_.image_2d.level, this->current_.image_2d.internal_format,
+        this->current_.image_2d.width, this->current_.image_2d.height,
+        this->current_.image_2d.border, this->current_.image_2d.format,
+        this->current_.image_2d.type, this->current_.data.create_buffer());
+    this->current_.data_changed = false;
   }
-  if (force_sync || this->current_.mipmap_target_changed_) {
-    this->proxy_->get()->GlGenerateMipmap(this->current_.mipmap_target_);
-    this->current_.mipmap_target_changed_ = false;
+  if (force_sync || this->current_.mipmap_target_changed) {
+    this->proxy_->get()->GlGenerateMipmap(this->current_.mipmap_target);
+    this->current_.mipmap_target_changed = false;
   }
 }
 
 void GlTexture::new_image_2d(Image2dData& image_2d, wl_resource* data) {
-  this->pending_.image_2d_ = image_2d;
-  this->pending_.data_.link(data);
+  this->pending_.image_2d = image_2d;
+  this->pending_.data.link(data);
 }
 void GlTexture::request_generate_mipmap(uint32_t target) {
-  this->pending_.mipmap_target_ = target;
+  this->pending_.mipmap_target = target;
 }
 
 namespace {
@@ -91,14 +90,14 @@ void image_2d(wl_client* /* client */, wl_resource* resource, uint32_t target,
   auto* self = static_cast<util::UniPtr<GlTexture>*>(
       wl_resource_get_user_data(resource));
   Image2dData image_2d{//
-      .target_          = target,
-      .level_           = level,
-      .internal_format_ = internal_format,
-      .width_           = width,
-      .height_          = height,
-      .border_          = border,
-      .format_          = format,
-      .type_            = type};
+      .target          = target,
+      .level           = level,
+      .internal_format = internal_format,
+      .width           = width,
+      .height          = height,
+      .border          = border,
+      .format          = format,
+      .type            = type};
   (*self)->new_image_2d(image_2d, data);
 }
 void generate_mipmap(
@@ -107,7 +106,7 @@ void generate_mipmap(
       wl_resource_get_user_data(resource));
   (*self)->request_generate_mipmap(target);
 }
-const struct zwn_gl_texture_interface kImpl = {
+constexpr struct zwn_gl_texture_interface kImpl = {
     .destroy         = destroy,
     .image_2d        = image_2d,
     .generate_mipmap = generate_mipmap,

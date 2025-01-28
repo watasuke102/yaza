@@ -39,7 +39,7 @@ class RenderingUnit {
 
  private:
   struct {
-    util::Signal<std::nullptr_t*> committed_;
+    util::Signal<std::nullptr_t*> committed;
   } events_;
 
   bool committed_ = false;

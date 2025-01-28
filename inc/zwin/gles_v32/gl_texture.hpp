@@ -14,14 +14,14 @@
 
 namespace yaza::zwin::gles_v32::gl_texture {
 struct Image2dData {
-  uint32_t target_;
-  int32_t  level_;
-  int32_t  internal_format_;
-  uint32_t width_;
-  uint32_t height_;
-  int32_t  border_;
-  uint32_t format_;
-  uint32_t type_;
+  uint32_t target;
+  int32_t  level;
+  int32_t  internal_format;
+  uint32_t width;
+  uint32_t height;
+  int32_t  border;
+  uint32_t format;
+  uint32_t type;
 };
 
 class GlTexture {
@@ -42,16 +42,16 @@ class GlTexture {
 
  private:
   struct {
-    Image2dData               image_2d_;
-    util::WeakResource<void*> data_;
-    uint32_t                  mipmap_target_ = 0;
+    Image2dData               image_2d;
+    util::WeakResource<void*> data;
+    uint32_t                  mipmap_target = 0;
   } pending_;
   struct {
-    Image2dData    image_2d_;
-    util::DataPool data_;
-    uint32_t       mipmap_target_;
-    bool           data_changed_          = false;
-    bool           mipmap_target_changed_ = false;
+    Image2dData    image_2d;
+    util::DataPool data;
+    uint32_t       mipmap_target;
+    bool           data_changed          = false;
+    bool           mipmap_target_changed = false;
   } current_;
 
   util::Listener<std::nullptr_t*> session_disconnected_listener_;

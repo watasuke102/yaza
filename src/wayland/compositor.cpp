@@ -5,7 +5,6 @@
 #include <cstdint>
 
 #include "common.hpp"
-#include "server.hpp"
 #include "wayland/region.hpp"
 #include "wayland/surface.hpp"
 
@@ -21,7 +20,7 @@ void create_region(wl_client* client, wl_resource* /*resource*/, uint32_t id) {
   region::create(client, id);
 }
 
-const struct wl_compositor_interface kImpl = {
+constexpr struct wl_compositor_interface kImpl = {
     .create_surface = create_surface,
     .create_region  = create_region,
 };

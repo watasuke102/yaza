@@ -5,13 +5,13 @@
 
 namespace yaza::zwin::shm_pool {
 struct ShmPool {
-  wl_resource* resource_;
-  int          internal_refcount_;
-  int          external_refcount_;
-  char*        data_;
-  ssize_t      size_;
-  ssize_t      new_size_;
-  bool         sigbuf_is_impossible_;
+  wl_resource* resource;
+  int          internal_refcount;
+  int          external_refcount;
+  char*        data;
+  ssize_t      size;
+  ssize_t      new_size;
+  bool         sigbuf_is_impossible;
 };
 
 ShmPool* new_pool(wl_client* client, wl_resource* resource, uint32_t id,

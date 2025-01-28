@@ -21,24 +21,23 @@
 namespace yaza::zwin::shm_pool {
 namespace {
 void* grow_mapping(shm_pool::ShmPool* pool) {
-  void* data =
-      mremap(pool->data_, pool->size_, pool->new_size_, MREMAP_MAYMOVE);
+  void* data = mremap(pool->data, pool->size, pool->new_size, MREMAP_MAYMOVE);
   return data;
 }
 void finish_resize(shm_pool::ShmPool* pool) {
-  if (pool->size_ == pool->new_size_) {
+  if (pool->size == pool->new_size) {
     return;
   }
 
   void* data = grow_mapping(pool);
   if (data == MAP_FAILED) {
     wl_resource_post_error(
-        pool->resource_, ZWN_SHM_ERROR_INVALID_FD, "failed mremap");
+        pool->resource, ZWN_SHM_ERROR_INVALID_FD, "failed mremap");
     return;
   }
 
-  pool->data_ = static_cast<char*>(data);
-  pool->size_ = pool->new_size_;
+  pool->data = static_cast<char*>(data);
+  pool->size = pool->new_size;
 }
 
 void destroy(wl_client* /*client*/, wl_resource* resource) {
@@ -56,37 +55,37 @@ void create_buffer(wl_client* client, wl_resource* resource, uint32_t id,
         resource, ZWN_SHM_ERROR_INVALID_SIZE, "requested size is invalid");
   }
 
-  if (offset < 0 || size <= 0 || offset > pool->size_ - size) {
+  if (offset < 0 || size <= 0 || offset > pool->size - size) {
     wl_resource_post_error(resource, ZWN_SHM_ERROR_INVALID_SIZE,
         "requested size (%ld) is invalid", size);
     return;
   }
 
   if (shm_buffer::new_buffer(client, id, pool, size, offset)) {
-    pool->internal_refcount_++;
+    pool->internal_refcount++;
   }
 }
 void resize(wl_client* /*client*/, wl_resource* resource, int32_t size) {
   auto* pool = static_cast<ShmPool*>(wl_resource_get_user_data(resource));
 
-  if (size < pool->size_) {
+  if (size < pool->size) {
     wl_resource_post_error(
         resource, ZWN_SHM_ERROR_INVALID_FD, "shrinking pool invalid");
     return;
   }
 
-  pool->new_size_ = size;
+  pool->new_size = size;
 
   /* If the compositor has taken references on this pool it
    * may be caching pointers into it. In that case we
    * defer the resize (which may move the entire mapping)
    * until the compositor finishes dereferencing the pool.
    */
-  if (pool->external_refcount_ == 0) {
+  if (pool->external_refcount == 0) {
     finish_resize(pool);
   }
 }
-const struct zwn_shm_pool_interface kImpl = {
+constexpr struct zwn_shm_pool_interface kImpl = {
     .destroy       = destroy,
     .create_buffer = create_buffer,
     .resize        = resize,
@@ -106,29 +105,29 @@ ShmPool* new_pool(wl_client* client, wl_resource* resource, uint32_t id,
     goto err;
   }
 
-  pool->internal_refcount_    = 1;
-  pool->external_refcount_    = 0;
-  pool->size_                 = size;
-  pool->new_size_             = size;
-  pool->sigbuf_is_impossible_ = sigbuf_is_impossible;
-  pool->data_ =
+  pool->internal_refcount    = 1;
+  pool->external_refcount    = 0;
+  pool->size                 = size;
+  pool->new_size             = size;
+  pool->sigbuf_is_impossible = sigbuf_is_impossible;
+  pool->data =
       static_cast<char*>(mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0));
-  if (pool->data_ == MAP_FAILED) {
+  if (pool->data == MAP_FAILED) {
     wl_resource_post_error(resource, ZWN_SHM_ERROR_INVALID_FD,
         "failed mmap fd %d: %s", fd, std::strerror(errno));
     goto err_free;
   }
 
-  pool->resource_ = wl_resource_create(client, &zwn_shm_pool_interface, 1, id);
-  if (!pool->resource_) {
+  pool->resource = wl_resource_create(client, &zwn_shm_pool_interface, 1, id);
+  if (!pool->resource) {
     wl_client_post_no_memory(client);
     goto err_munmap;
   }
 
-  wl_resource_set_implementation(pool->resource_, &kImpl, pool, destroy_pool);
+  wl_resource_set_implementation(pool->resource, &kImpl, pool, destroy_pool);
   return pool;
 err_munmap:
-  munmap(pool->data_, pool->size_);
+  munmap(pool->data, pool->size);
 err_free:
   free(pool);
 err:
@@ -137,21 +136,21 @@ err:
 
 void unref(ShmPool* pool, bool external) {
   if (external) {
-    pool->external_refcount_--;
-    assert(pool->external_refcount_ >= 0);
-    if (pool->external_refcount_ == 0) {
+    pool->external_refcount--;
+    assert(pool->external_refcount >= 0);
+    if (pool->external_refcount == 0) {
       finish_resize(pool);
     }
   } else {
-    pool->internal_refcount_--;
-    assert(pool->internal_refcount_ >= 0);
+    pool->internal_refcount--;
+    assert(pool->internal_refcount >= 0);
   }
 
-  if (pool->internal_refcount_ + pool->external_refcount_ > 0) {
+  if (pool->internal_refcount + pool->external_refcount > 0) {
     return;
   }
 
-  munmap(pool->data_, pool->size_);
+  munmap(pool->data, pool->size);
   free(pool);
 }
 }  // namespace yaza::zwin::shm_pool

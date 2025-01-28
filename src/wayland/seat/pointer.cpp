@@ -17,7 +17,7 @@ void set_cursor(wl_client* /*client*/, wl_resource* /*resource*/,
 void release(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
 }
-const struct wl_pointer_interface kImpl = {
+constexpr struct wl_pointer_interface kImpl = {
     .set_cursor = set_cursor,
     .release    = release,
 };

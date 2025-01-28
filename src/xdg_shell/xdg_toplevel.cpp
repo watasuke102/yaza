@@ -60,7 +60,7 @@ void set_minimized(wl_client* /*client*/, wl_resource* /*resource*/) {
   // TODO
 }
 
-const struct xdg_toplevel_interface kImpl = {
+constexpr struct xdg_toplevel_interface kImpl = {
     .destroy          = destroy,
     .set_parent       = set_parent,
     .set_title        = set_title,

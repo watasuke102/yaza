@@ -24,12 +24,12 @@ class Listener {
 
   DISABLE_MOVE_AND_COPY(Listener);
   Listener() {
-    child_.parent_ = this;
-    wl_list_init(&this->child_.listener_.link);
-    this->child_.listener_.notify = [](wl_listener* listener, void* data) {
-      Child* child = wl_container_of(listener, child, listener_);
-      if (child->parent_->handler_.has_value()) {
-        child->parent_->handler_.value()(static_cast<D>(data));
+    child_.parent = this;
+    wl_list_init(&this->child_.listener.link);
+    this->child_.listener.notify = [](wl_listener* listener, void* data) {
+      Child* child = wl_container_of(listener, child, listener);
+      if (child->parent->handler_.has_value()) {
+        child->parent->handler_.value()(static_cast<D>(data));
       }
     };
   }
@@ -41,8 +41,8 @@ class Listener {
     this->handler_ = handler;
   }
   void remove() {
-    wl_list_remove(&this->child_.listener_.link);
-    wl_list_init(&this->child_.listener_.link);
+    wl_list_remove(&this->child_.listener.link);
+    wl_list_init(&this->child_.listener.link);
   }
 
  private:
@@ -57,8 +57,8 @@ class Listener {
    */
 
   struct Child {
-    wl_listener  listener_;
-    Listener<D>* parent_;
+    wl_listener  listener;
+    Listener<D>* parent;
   } child_;
   static_assert(std::is_standard_layout_v<Child>);
 
@@ -83,7 +83,7 @@ class Signal {
     wl_signal_emit(&this->signal_, data);
   }
   void add_listener(Listener<D>& listener) {
-    wl_signal_add(&this->signal_, &listener.child_.listener_);
+    wl_signal_add(&this->signal_, &listener.child_.listener);
   }
 
  private:

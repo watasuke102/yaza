@@ -61,7 +61,7 @@ void create_gl_base_technique(wl_client* client, wl_resource* /*resource*/,
   }
   gl_base_technique::create(client, id, unit);
 }
-const struct zwn_gles_v32_interface kImpl = {
+constexpr struct zwn_gles_v32_interface kImpl = {
     .destroy                  = destroy,
     .create_rendering_unit    = create_rendering_unit,
     .create_gl_buffer         = create_gl_buffer,

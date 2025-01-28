@@ -27,7 +27,7 @@ void move(wl_client* /*client*/, wl_resource* /*resource*/,
     wl_resource* /*seat*/, uint32_t /*serial*/) {
   // TODO
 }
-const struct zwn_bounded_interface kImpl = {
+constexpr struct zwn_bounded_interface kImpl = {
     .destroy       = destroy,
     .ack_configure = ack_configure,
     .set_title     = set_title,

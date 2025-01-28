@@ -32,9 +32,9 @@ class Remote {
  private:
   wl_event_loop* wl_loop_;
   struct {
-    util::Signal<Session*>        session_established_;
-    util::Signal<std::nullptr_t*> session_disconnected_;
-    util::Signal<std::nullptr_t*> session_frame_;
+    util::Signal<Session*>        session_established;
+    util::Signal<std::nullptr_t*> session_disconnected;
+    util::Signal<std::nullptr_t*> session_frame;
   } events_;
 
   std::unique_ptr<zen::remote::Signal<void(uint64_t)>::Connection>

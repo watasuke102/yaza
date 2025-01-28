@@ -31,7 +31,7 @@ void get_expansive(wl_client* client, wl_resource* /*resource*/, uint32_t id,
       wl_resource_get_user_data(virtual_object_resource));
   expansive::create(client, id, virtual_object);
 }
-const struct zwn_shell_interface kImpl = {
+constexpr struct zwn_shell_interface kImpl = {
     .destroy       = destroy,
     .get_bounded   = get_bounded,
     .get_expansive = get_expansive,

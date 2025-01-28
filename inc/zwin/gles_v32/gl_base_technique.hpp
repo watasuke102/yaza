@@ -56,15 +56,15 @@ class GlBaseTechnique {
 
  private:
   struct {
-    bool                                 program_changed_ = false;
-    util::WeakPtr<gl_program::GlProgram> program_;
+    bool                                 program_changed = false;
+    util::WeakPtr<gl_program::GlProgram> program;
 
-    bool                                          vertex_array_changed_ = false;
-    util::WeakPtr<gl_vertex_array::GlVertexArray> vertex_array_;
+    bool                                          vertex_array_changed = false;
+    util::WeakPtr<gl_vertex_array::GlVertexArray> vertex_array;
 
-    TextureBindingList  texture_bindings_;
-    DrawApiArgs         draw_api_args_;
-    UniformVariableList uniform_vars_;
+    TextureBindingList  texture_bindings;
+    DrawApiArgs         draw_api_args;
+    UniformVariableList uniform_vars;
   } pending_, current_;
   bool commited_ = false;
 

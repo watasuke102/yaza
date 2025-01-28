@@ -31,7 +31,7 @@ class GlVertexArray {
 
  private:
   struct {
-    std::unordered_map<uint32_t, VertexAttribute> attribute_map_;
+    std::unordered_map<uint32_t, VertexAttribute> attribute_map;
   } pending_, current_;
 
   util::Listener<std::nullptr_t*> session_disconnected_listener_;

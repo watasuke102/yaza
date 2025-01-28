@@ -49,7 +49,7 @@ void create_pool(wl_client* client, wl_resource* resource, uint32_t id,
   shm_pool::new_pool(client, resource, id, fd, size, sigbuf_is_impossible);
   close(fd);
 }
-const struct zwn_shm_interface kImpl = {
+constexpr struct zwn_shm_interface kImpl = {
     .create_pool = create_pool,
 };
 }  // namespace

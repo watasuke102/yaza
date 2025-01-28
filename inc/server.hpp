@@ -15,7 +15,7 @@ namespace wayland::seat {
 class Seat;
 }
 namespace server {
-// NOLINTBEGIN(cppcoreguidelines-non-private-member-variables-in-classes,readability-identifier-naming)
+// NOLINTBEGIN(cppcoreguidelines-non-private-member-variables-in-classes)
 class Server {
  public:
   DISABLE_MOVE_AND_COPY(Server);
@@ -55,4 +55,4 @@ inline Server& get() {
 }
 }  // namespace server
 }  // namespace yaza
-// NOLINTEND(cppcoreguidelines-non-private-member-variables-in-classes,readability-identifier-naming)
+// NOLINTEND(cppcoreguidelines-non-private-member-variables-in-classes)

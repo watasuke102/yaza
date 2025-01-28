@@ -42,7 +42,7 @@ CheckOptions:
     value: lower_case
   - key: readability-identifier-naming.MemberCase
     value: lower_case
-  - key: readability-identifier-naming.MemberSuffix
+  - key: readability-identifier-naming.PrivateMemberSuffix
     value: _
   - key: readability-identifier-naming.ParameterCase
     value: lower_case
@@ -59,9 +59,7 @@ CheckOptions:
   - key: readability-identifier-naming.FunctionCase
     value: lower_case
   - key: readability-identifier-naming.ConstantCase
-    value: CamelCase
-  - key: readability-identifier-naming.ConstantPrefix
-    value: k
+    value: lower_case
   - key: readability-identifier-naming.ConstantMemberCase
     value: CamelCase
   - key: readability-identifier-naming.ConstantMemberPrefix

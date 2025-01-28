@@ -21,7 +21,7 @@ void add_cuboid(struct wl_client* /*client*/, struct wl_resource* /*resource*/,
 void add_sphere(struct wl_client* /*client*/, struct wl_resource* /*resource*/,
     struct wl_array* /*center*/, struct wl_array* /*radius*/) {
 }
-const struct zwn_region_interface kImpl = {
+constexpr struct zwn_region_interface kImpl = {
     .destroy    = destroy,
     .add_cuboid = add_cuboid,
     .add_sphere = add_sphere,

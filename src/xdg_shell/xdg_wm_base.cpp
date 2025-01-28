@@ -2,7 +2,6 @@
 #include <wayland-server-core.h>
 #include <xdg-shell-protocol.h>
 
-#include "server.hpp"
 #include "wayland/surface.hpp"
 #include "xdg_shell/xdg_surface.hpp"
 
@@ -26,7 +25,7 @@ void pong(
     wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*serial*/) {
   // TODO
 }
-const struct xdg_wm_base_interface kImpl = {
+constexpr struct xdg_wm_base_interface kImpl = {
     .destroy           = destroy,
     .create_positioner = create_positioner,
     .get_xdg_surface   = get_xdg_surface,

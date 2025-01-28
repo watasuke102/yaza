@@ -18,7 +18,7 @@ void subtract(wl_client* /*client*/, wl_resource* /*resource*/, int32_t /*x*/,
   // TODO
 }
 
-const struct wl_region_interface kImpl = {
+constexpr struct wl_region_interface kImpl = {
     .destroy  = destroy,
     .add      = add,
     .subtract = subtract,

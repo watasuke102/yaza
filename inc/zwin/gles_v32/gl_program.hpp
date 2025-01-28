@@ -29,14 +29,14 @@ class GlProgram {
 
  private:
   struct {
-    bool                                          damaged_     = false;
-    bool                                          should_link_ = false;
-    std::list<util::WeakPtr<gl_shader::GlShader>> shaders_;
+    bool                                          damaged     = false;
+    bool                                          should_link = false;
+    std::list<util::WeakPtr<gl_shader::GlShader>> shaders;
   } pending_;
   struct {
-    bool                                          linked_      = false;
-    bool                                          should_link_ = false;
-    std::list<util::WeakPtr<gl_shader::GlShader>> shaders_;
+    bool                                          linked      = false;
+    bool                                          should_link = false;
+    std::list<util::WeakPtr<gl_shader::GlShader>> shaders;
   } current_;
   wl_resource* resource_;
 

@@ -14,7 +14,7 @@
 
 namespace yaza::zwin::gles_v32::gl_base_technique {
 DrawArraysArgs::DrawArraysArgs(uint32_t mode, int32_t first, uint32_t count)
-    : mode_(mode), first_(first), count_(count) {
+    : mode(mode), first(first), count(count) {
   LOG_DEBUG("constructor: DrawArraysArgs");
 }
 DrawArraysArgs::~DrawArraysArgs() {
@@ -23,8 +23,8 @@ DrawArraysArgs::~DrawArraysArgs() {
 
 DrawElementsArgs::DrawElementsArgs(uint32_t mode, uint32_t count, uint32_t type,
     uint64_t offset, util::WeakPtr<gl_buffer::GlBuffer>&& element_array_buffer)
-    : mode_(mode), count_(count), type_(type), offset_(offset) {
-  this->element_array_buffer_ = std::move(element_array_buffer);
+    : mode(mode), count(count), type(type), offset(offset) {
+  this->element_array_buffer = std::move(element_array_buffer);
 }
 DrawElementsArgs ::~DrawElementsArgs() {
   LOG_DEBUG(" destructor: DrawElementsArgs");
@@ -40,7 +40,7 @@ void DrawApiArgs::commit(DrawApiArgs& pending, DrawApiArgs& current) {
           current.data_ = std::move(args);
         },
         [&current](std::unique_ptr<DrawElementsArgs>& args) {
-          if (auto* buf = args->element_array_buffer_.lock()) {
+          if (auto* buf = args->element_array_buffer.lock()) {
             buf->commit();
           }
           current.data_ = std::move(args);
@@ -56,23 +56,23 @@ void DrawApiArgs::commit(DrawApiArgs& pending, DrawApiArgs& current) {
 void DrawApiArgs::sync(
     std::unique_ptr<zen::remote::server::IGlBaseTechnique>& proxy,
     bool                                                    force_sync) {
-  const bool kShouldSync = force_sync || this->changed_;
+  const bool should_sync = force_sync || this->changed_;
   util::VisitorList(
-      [&proxy, kShouldSync](std::unique_ptr<DrawArraysArgs>& args) {
-        if (kShouldSync) {
-          proxy->GlDrawArrays(args->mode_, args->first_, args->count_);
+      [&proxy, should_sync](std::unique_ptr<DrawArraysArgs>& args) {
+        if (should_sync) {
+          proxy->GlDrawArrays(args->mode, args->first, args->count);
         }
       },
-      [&proxy, kShouldSync, force_sync](
+      [&proxy, should_sync, force_sync](
           std::unique_ptr<DrawElementsArgs>& args) {
-        auto* element_array_buffer = args->element_array_buffer_.lock();
+        auto* element_array_buffer = args->element_array_buffer.lock();
         if (!element_array_buffer) {
           return;
         }
         element_array_buffer->sync(force_sync);
-        if (kShouldSync) {
-          proxy->GlDrawElements(args->mode_, args->count_, args->type_,
-              args->offset_, element_array_buffer->remote_id());
+        if (should_sync) {
+          proxy->GlDrawElements(args->mode, args->count, args->type,
+              args->offset, element_array_buffer->remote_id());
         }
       })
       .visit(this->data_);

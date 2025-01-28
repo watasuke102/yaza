@@ -24,9 +24,9 @@ struct DrawArraysArgs {
   DrawArraysArgs& operator=(DrawArraysArgs&&)      = default;
   ~DrawArraysArgs();
 
-  uint32_t mode_;
-  int32_t  first_;
-  uint32_t count_;
+  uint32_t mode;
+  int32_t  first;
+  uint32_t count;
 };
 
 struct DrawElementsArgs {
@@ -39,11 +39,11 @@ struct DrawElementsArgs {
   DrawElementsArgs& operator=(DrawElementsArgs&&)      = default;
   ~DrawElementsArgs();
 
-  uint32_t                           mode_;
-  uint32_t                           count_;
-  uint32_t                           type_;
-  uint64_t                           offset_;
-  util::WeakPtr<gl_buffer::GlBuffer> element_array_buffer_;
+  uint32_t                           mode;
+  uint32_t                           count;
+  uint32_t                           type;
+  uint64_t                           offset;
+  util::WeakPtr<gl_buffer::GlBuffer> element_array_buffer;
 };
 
 class DrawApiArgs {

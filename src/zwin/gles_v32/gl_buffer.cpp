@@ -35,20 +35,20 @@ GlBuffer::~GlBuffer() {
 }
 
 void GlBuffer::commit() {
-  if (!this->pending_.data_.has_resource()) {
+  if (!this->pending_.data.has_resource()) {
     return;
   }
-  if (this->current_.data_.has_data()) {
-    this->current_.data_.reset();
+  if (this->current_.data.has_data()) {
+    this->current_.data.reset();
   }
-  this->current_.data_.from_weak_resource(this->pending_.data_);
-  this->current_.data_size_    = this->current_.data_.size();
-  this->current_.data_damaged_ = true;
-  this->current_.target_       = this->pending_.target_;
-  this->current_.usage_        = this->pending_.usage_;
+  this->current_.data.from_weak_resource(this->pending_.data);
+  this->current_.data_size    = this->current_.data.size();
+  this->current_.data_damaged = true;
+  this->current_.target       = this->pending_.target;
+  this->current_.usage        = this->pending_.usage;
 
-  this->pending_.data_.zwn_buffer_send_release();
-  this->pending_.data_.unlink();
+  this->pending_.data.zwn_buffer_send_release();
+  this->pending_.data.unlink();
 }
 
 void GlBuffer::sync(bool force_sync) {
@@ -56,19 +56,19 @@ void GlBuffer::sync(bool force_sync) {
     this->proxy_ = zen::remote::server::CreateGlBuffer(
         server::get().remote->channel_nonnull());
   }
-  if (!force_sync && !this->current_.data_damaged_) {
+  if (!force_sync && !this->current_.data_damaged) {
     return;
   }
-  this->proxy_->get()->GlBufferData(this->current_.data_.create_buffer(),
-      this->current_.target_, this->current_.data_size_, this->current_.usage_);
-  this->current_.data_damaged_ = false;
+  this->proxy_->get()->GlBufferData(this->current_.data.create_buffer(),
+      this->current_.target, this->current_.data_size, this->current_.usage);
+  this->current_.data_damaged = false;
 }
 
 void GlBuffer::update_pending_data(
     uint32_t target, uint32_t usage, wl_resource* data) {
-  this->pending_.target_ = target;
-  this->pending_.usage_  = usage;
-  this->pending_.data_.link(data);
+  this->pending_.target = target;
+  this->pending_.usage  = usage;
+  this->pending_.data.link(data);
 }
 
 namespace {
@@ -81,7 +81,7 @@ void data(wl_client* /*client*/, wl_resource* resource, uint32_t target,
       static_cast<util::UniPtr<GlBuffer>*>(wl_resource_get_user_data(resource));
   (*self)->update_pending_data(target, usage, data);
 }
-const struct zwn_gl_buffer_interface kImpl = {
+constexpr struct zwn_gl_buffer_interface kImpl = {
     .destroy = destroy,
     .data    = data,
 };

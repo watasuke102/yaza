@@ -11,7 +11,6 @@
 
 #include "common.hpp"
 #include "util/signal.hpp"
-#include "util/weakable_unique_ptr.hpp"
 #include "zwin/shm/shm_buffer.hpp"
 
 // Do not include `gl_program.hpp` to prevent circular reference

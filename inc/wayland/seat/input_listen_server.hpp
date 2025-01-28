@@ -14,11 +14,11 @@ enum class EventType : uint32_t {  // NOLINT
 };
 
 struct Event {
-  uint32_t  magic_;
-  EventType type_;
+  uint32_t  magic;
+  EventType type;
   union {
-    float movement_[2];
-  } data_;
+    float movement[2];
+  } data;
 };
 
 // owned by Seat

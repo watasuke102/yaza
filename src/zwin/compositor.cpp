@@ -18,7 +18,7 @@ void create_virtual_object(
 void create_region(wl_client* client, wl_resource* /*resource*/, uint32_t id) {
   region::create(client, id);
 }
-const struct zwn_compositor_interface kImpl = {
+constexpr struct zwn_compositor_interface kImpl = {
     .create_virtual_object = create_virtual_object,
     .create_region         = create_region,
 };

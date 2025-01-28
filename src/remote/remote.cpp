@@ -82,7 +82,7 @@ Remote::Remote(wl_event_loop* loop)
           return;
         }
         LOG_DEBUG("session is established with peer id=%lu", peer_id);
-        this->events_.session_established_.emit(this->current_session_->get());
+        this->events_.session_established.emit(this->current_session_->get());
       });
 
   this->peer_lost_signal_disconnector_ =
@@ -98,7 +98,7 @@ Remote::Remote(wl_event_loop* loop)
 
         if (self->has_session() &&
             self->channel_nonnull()->GetBusyness() < kBusynessThreshold) {
-          self->events_.session_frame_.emit(nullptr);
+          self->events_.session_frame.emit(nullptr);
         }
 
         auto now  = std::chrono::steady_clock::now();
@@ -139,20 +139,20 @@ std::shared_ptr<zen::remote::server::IChannel> Remote::channel_nonnull() {
   return this->current_session_->get()->channel();
 }
 void Remote::listen_session_established(util::Listener<Session*>& listener) {
-  this->events_.session_established_.add_listener(listener);
+  this->events_.session_established.add_listener(listener);
 }
 void Remote::listen_session_disconnected(
     util::Listener<std::nullptr_t*>& listener) {
-  this->events_.session_disconnected_.add_listener(listener);
+  this->events_.session_disconnected.add_listener(listener);
 }
 void Remote::listen_session_frame(util::Listener<std::nullptr_t*>& listener) {
-  this->events_.session_frame_.add_listener(listener);
+  this->events_.session_frame.add_listener(listener);
 }
 void Remote::disconnect() {
   assert(this->has_session());
   LOG_DEBUG(
       "disconnecting session (id=%lu)", this->current_session_->get()->id());
   this->current_session_ = std::nullopt;
-  this->events_.session_disconnected_.emit(nullptr);
+  this->events_.session_disconnected.emit(nullptr);
 }
 }  // namespace yaza::remote

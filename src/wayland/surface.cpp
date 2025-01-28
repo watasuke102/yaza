@@ -85,10 +85,10 @@ void Surface::init_renderer() {
         |    |
         2 -- 1
         */
-      {.x_ = +kSize, .y_ = +kSize, .z_ = -0.F, .u_ = 1.F, .v_ = 0.F},
-      {.x_ = +kSize, .y_ = -kSize, .z_ = -0.F, .u_ = 1.F, .v_ = 1.F},
-      {.x_ = -kSize, .y_ = -kSize, .z_ = -0.F, .u_ = 0.F, .v_ = 1.F},
-      {.x_ = -kSize, .y_ = +kSize, .z_ = -0.F, .u_ = 0.F, .v_ = 0.F},
+      {.x = +kSize, .y = +kSize, .z = -0.F, .u = 1.F, .v = 0.F},
+      {.x = +kSize, .y = -kSize, .z = -0.F, .u = 1.F, .v = 1.F},
+      {.x = -kSize, .y = -kSize, .z = -0.F, .u = 0.F, .v = 1.F},
+      {.x = -kSize, .y = +kSize, .z = -0.F, .u = 0.F, .v = 0.F},
   });
   this->renderer_->request_draw_arrays(GL_TRIANGLE_FAN, 0, 4);
   this->update_geom();
@@ -217,7 +217,7 @@ void offset(wl_client* /*client*/, wl_resource* /*resource*/, int32_t /*x*/,
     int32_t /*y*/) {
   // TODO
 }
-const struct wl_surface_interface kImpl = {
+constexpr struct wl_surface_interface kImpl = {
     .destroy              = destroy,
     .attach               = attach,
     .damage               = damage,

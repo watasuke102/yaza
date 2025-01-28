@@ -24,10 +24,10 @@ enum class ParamType : uint8_t {
 };
 
 struct Parameter {
-  bool                                                  changed_;
-  ParamType                                             type_;
-  uint32_t                                              pname_;
-  std::variant<int32_t, float, std::array<uint8_t, 16>> param_;
+  bool                                                  changed;
+  ParamType                                             type;
+  uint32_t                                              pname;
+  std::variant<int32_t, float, std::array<uint8_t, 16>> param;
 };
 
 class GlSampler {
@@ -48,7 +48,7 @@ class GlSampler {
 
  private:
   struct {
-    std::unordered_map<uint32_t, Parameter> params_;
+    std::unordered_map<uint32_t, Parameter> params;
   } pending_, current_;
 
   util::Listener<std::nullptr_t*> session_disconnected_listener_;

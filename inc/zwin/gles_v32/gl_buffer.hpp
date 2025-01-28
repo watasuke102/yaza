@@ -29,16 +29,16 @@ class GlBuffer {
 
  private:
   struct {
-    uint32_t                  target_;
-    uint32_t                  usage_;
-    util::WeakResource<void*> data_;
+    uint32_t                  target;
+    uint32_t                  usage;
+    util::WeakResource<void*> data;
   } pending_;
   struct {
-    bool           data_damaged_;
-    uint32_t       target_;
-    uint32_t       usage_;
-    util::DataPool data_;
-    ssize_t        data_size_;
+    bool           data_damaged;
+    uint32_t       target;
+    uint32_t       usage;
+    util::DataPool data;
+    ssize_t        data_size;
   } current_;
 
   util::Listener<std::nullptr_t*> session_disconnected_listener_;

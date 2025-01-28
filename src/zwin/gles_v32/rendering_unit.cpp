@@ -49,7 +49,7 @@ void RenderingUnit::commit() {
     this->owner_->add_rendering_unit(this);
     this->committed_ = true;
   }
-  this->events_.committed_.emit(nullptr);
+  this->events_.committed.emit(nullptr);
 }
 
 void RenderingUnit::sync(bool force_sync) {
@@ -76,14 +76,14 @@ void RenderingUnit::set_technique(
 }
 
 void RenderingUnit::listen_commited(util::Listener<std::nullptr_t*>& listener) {
-  this->events_.committed_.add_listener(listener);
+  this->events_.committed.add_listener(listener);
 }
 
 namespace {
 void destroy(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
 }
-const struct zwn_rendering_unit_interface kImpl = {
+constexpr struct zwn_rendering_unit_interface kImpl = {
     .destroy = destroy,
 };
 

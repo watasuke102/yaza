@@ -20,11 +20,11 @@ struct TextureBinding {
       util::WeakPtr<gl_texture::GlTexture>&& texture,
       util::WeakPtr<gl_sampler::GlSampler>&& sampler);
 
-  uint32_t                             binding_;
-  std::string                          name_;
-  uint32_t                             target_;
-  util::WeakPtr<gl_texture::GlTexture> texture_;
-  util::WeakPtr<gl_sampler::GlSampler> sampler_;
+  uint32_t                             binding;
+  std::string                          name;
+  uint32_t                             target;
+  util::WeakPtr<gl_texture::GlTexture> texture;
+  util::WeakPtr<gl_sampler::GlSampler> sampler;
 };
 
 class TextureBindingList {

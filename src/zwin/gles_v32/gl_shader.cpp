@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <memory>
 #include <optional>
 
 #include "remote/remote.hpp"
@@ -48,7 +47,7 @@ namespace {
 void destroy(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
 }
-const struct zwn_gl_shader_interface kImpl = {
+constexpr struct zwn_gl_shader_interface kImpl = {
     .destroy = destroy,
 };  // namespace
 

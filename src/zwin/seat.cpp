@@ -14,7 +14,7 @@ void get_ray(
 void release(wl_client* /*client*/, wl_resource* /*resource*/) {
   // TODO
 }
-const struct zwn_seat_interface kImpl = {
+constexpr struct zwn_seat_interface kImpl = {
     .get_ray = get_ray,
     .release = release,
 };

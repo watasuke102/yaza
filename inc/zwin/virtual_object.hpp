@@ -37,11 +37,11 @@ class VirtualObject {
 
  private:
   struct {
-    util::Signal<std::nullptr_t*> committed_;
+    util::Signal<std::nullptr_t*> committed;
   } events_;
 
   struct {
-    wl_list frame_callback_list_;
+    wl_list frame_callback_list;
   } pending_, current_;
   bool committed_  = false;
   bool destroying_ = false;

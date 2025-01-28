@@ -4,11 +4,11 @@ namespace yaza::zwin::gles_v32::gl_base_technique {
 TextureBinding::TextureBinding(uint32_t binding, const char* name,
     uint32_t target, util::WeakPtr<gl_texture::GlTexture>&& texture,
     util::WeakPtr<gl_sampler::GlSampler>&& sampler)
-    : binding_(binding)
-    , name_(name)
-    , target_(target)
-    , texture_(std::move(texture))
-    , sampler_(std::move(sampler)) {
+    : binding(binding)
+    , name(name)
+    , target(target)
+    , texture(std::move(texture))
+    , sampler(std::move(sampler)) {
 }
 
 void TextureBindingList::commit(
@@ -27,8 +27,8 @@ void TextureBindingList::commit(
   }
 
   for (auto& current : current.list_) {
-    current.texture_.lock()->commit();
-    current.sampler_.lock()->commit();
+    current.texture.lock()->commit();
+    current.sampler.lock()->commit();
   }
 }
 void TextureBindingList::sync(
@@ -36,13 +36,13 @@ void TextureBindingList::sync(
     bool                                                    force_sync) {
   this->remove_expired();
   for (auto& binding : this->list_) {
-    auto* texture = binding.texture_.lock();
-    auto* sampler = binding.sampler_.lock();
+    auto* texture = binding.texture.lock();
+    auto* sampler = binding.sampler.lock();
     texture->sync(force_sync);
     sampler->sync(force_sync);
     if (force_sync || this->changed_) {
-      proxy->BindTexture(binding.binding_, binding.name_, texture->remote_id(),
-          binding.target_, sampler->remote_id());
+      proxy->BindTexture(binding.binding, binding.name, texture->remote_id(),
+          binding.target, sampler->remote_id());
     }
   }
 }
@@ -51,7 +51,7 @@ void TextureBindingList::emplace(uint32_t binding, const char* name,
     uint32_t target, util::WeakPtr<gl_texture::GlTexture>&& texture,
     util::WeakPtr<gl_sampler::GlSampler>&& sampler) {
   this->list_.remove_if([binding](const TextureBinding& elem) {
-    return elem.binding_ == binding;
+    return elem.binding == binding;
   });
   this->list_.emplace_back(
       binding, name, target, std::move(texture), std::move(sampler));
@@ -60,7 +60,7 @@ void TextureBindingList::emplace(uint32_t binding, const char* name,
 
 void TextureBindingList::remove_expired() {
   this->list_.remove_if([](const TextureBinding& elem) {
-    return !elem.texture_.lock() || !elem.sampler_.lock();
+    return !elem.texture.lock() || !elem.sampler.lock();
   });
 }
 }  // namespace yaza::zwin::gles_v32::gl_base_technique

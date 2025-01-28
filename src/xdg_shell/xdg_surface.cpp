@@ -46,7 +46,7 @@ void ack_configure(wl_client* /* client */, wl_resource* /* resource */,
     uint32_t /* serial */) {
   // TODO
 }
-const struct xdg_surface_interface kImpl = {
+constexpr struct xdg_surface_interface kImpl = {
     .destroy             = destroy,
     .get_toplevel        = get_toplevel,
     .get_popup           = get_popup,

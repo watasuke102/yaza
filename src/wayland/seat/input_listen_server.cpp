@@ -132,11 +132,11 @@ void InputListenServer::handle_events(int client) const {
     }
 
     auto* event = (Event*)buf.data();
-    switch (event->type_) {
+    switch (event->type) {
       case EventType::MOUSE_MOVE:
         constexpr float kDivider = 100.F;
-        this->seat_->move_rel_pointing(-event->data_.movement_[1] / kDivider,
-            -event->data_.movement_[0] / kDivider);
+        this->seat_->move_rel_pointing(-event->data.movement[1] / kDivider,
+            -event->data.movement[0] / kDivider);
         break;
     }
   }

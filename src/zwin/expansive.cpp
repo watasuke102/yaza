@@ -15,7 +15,7 @@ void set_region(
     wl_client* /*client*/, wl_resource* /*resource*/, wl_resource* /*region*/) {
   // TODO
 }
-const struct zwn_expansive_interface kImpl = {
+constexpr struct zwn_expansive_interface kImpl = {
     .destroy    = destroy,
     .set_region = set_region,
 };

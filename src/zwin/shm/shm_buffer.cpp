@@ -13,23 +13,23 @@
 
 namespace yaza::zwin::shm_buffer {
 struct ShmBuffer {
-  wl_resource*       resource_;
-  ssize_t            size_;
-  uintptr_t          offset_;
-  shm_pool::ShmPool* pool_;
+  wl_resource*       resource;
+  ssize_t            size;
+  uintptr_t          offset;
+  shm_pool::ShmPool* pool;
 };
 
 namespace {
 void destroy(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
 }
-const struct zwn_buffer_interface kImpl = {
+constexpr struct zwn_buffer_interface kImpl = {
     .destroy = destroy,
 };
 
 void destroy_buffer(wl_resource* resource) {
   auto* buffer = static_cast<ShmBuffer*>(wl_resource_get_user_data(resource));
-  shm_pool::unref(buffer->pool_, false);
+  shm_pool::unref(buffer->pool, false);
   free(buffer);
 }
 }  // namespace
@@ -41,18 +41,18 @@ ShmBuffer* new_buffer(wl_client* client, uint32_t id, shm_pool::ShmPool* pool,
     wl_client_post_no_memory(client);
     return nullptr;
   }
-  buffer->size_   = size;
-  buffer->offset_ = offset;
-  buffer->pool_   = pool;
+  buffer->size   = size;
+  buffer->offset = offset;
+  buffer->pool   = pool;
 
-  buffer->resource_ = wl_resource_create(client, &zwn_buffer_interface, 1, id);
-  if (buffer->resource_ == nullptr) {
+  buffer->resource = wl_resource_create(client, &zwn_buffer_interface, 1, id);
+  if (buffer->resource == nullptr) {
     wl_client_post_no_memory(client);
     free(buffer);
     return nullptr;
   }
   wl_resource_set_implementation(
-      buffer->resource_, &shm_buffer::kImpl, buffer, destroy_buffer);
+      buffer->resource, &shm_buffer::kImpl, buffer, destroy_buffer);
   return buffer;
 }
 
@@ -64,9 +64,9 @@ pthread_once_t   shm_sigbus_once = PTHREAD_ONCE_INIT;
 pthread_key_t    shm_sigbus_data_key;
 struct sigaction shm_old_sigbus_action;
 struct ShmSigbusData {
-  shm_pool::ShmPool* current_pool_;
-  int                access_count_;
-  int                fallback_mapping_used_;
+  shm_pool::ShmPool* current_pool;
+  int                access_count;
+  int                fallback_mapping_used;
 };
 void reraise_sigbus() {
   /* If SIGBUS is raised for some other reason than accessing
@@ -84,18 +84,18 @@ void handle_sigbus(int /*signum*/, siginfo_t* info, void* /*context*/) {
     return;
   }
 
-  auto* pool = sigbus_data->current_pool_;
+  auto* pool = sigbus_data->current_pool;
   if (pool == nullptr ||  //
-      static_cast<char*>(info->si_addr) < pool->data_ ||
-      static_cast<char*>(info->si_addr) >= pool->data_ + pool->size_)  // NOLINT
+      static_cast<char*>(info->si_addr) < pool->data ||
+      static_cast<char*>(info->si_addr) >= pool->data + pool->size)  // NOLINT
   {
     reraise_sigbus();
     return;
   }
 
-  sigbus_data->fallback_mapping_used_ = 1;
+  sigbus_data->fallback_mapping_used = 1;
 
-  if (mmap(pool->data_, pool->size_, PROT_READ | PROT_WRITE,
+  if (mmap(pool->data, pool->size, PROT_READ | PROT_WRITE,
           MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS, 0, 0) == MAP_FAILED) {
     reraise_sigbus();
   }
@@ -150,9 +150,9 @@ void init_sigbus_data_key() {
  * buffer from multiple threads.
  */
 void begin_access(ShmBuffer* buffer) {
-  shm_pool::ShmPool* pool = buffer->pool_;
+  shm_pool::ShmPool* pool = buffer->pool;
 
-  if (pool->sigbuf_is_impossible_) {
+  if (pool->sigbuf_is_impossible) {
     return;
   }
 
@@ -169,11 +169,11 @@ void begin_access(ShmBuffer* buffer) {
     pthread_setspecific(shm_sigbus_data_key, sigbus_data);
   }
 
-  assert(sigbus_data->current_pool_ == nullptr ||
-         sigbus_data->current_pool_ == pool);
+  assert(sigbus_data->current_pool == nullptr ||
+         sigbus_data->current_pool == pool);
 
-  sigbus_data->current_pool_ = pool;
-  sigbus_data->access_count_++;
+  sigbus_data->current_pool = pool;
+  sigbus_data->access_count++;
 }
 
 /**
@@ -187,24 +187,24 @@ void begin_access(ShmBuffer* buffer) {
  * given buffer will be sent an error.
  */
 void end_access(ShmBuffer* buffer) {
-  auto* pool = buffer->pool_;
+  auto* pool = buffer->pool;
 
-  if (pool->sigbuf_is_impossible_) {
+  if (pool->sigbuf_is_impossible) {
     return;
   }
 
   auto* sigbus_data =
       static_cast<ShmSigbusData*>(pthread_getspecific(shm_sigbus_data_key));
-  assert(sigbus_data && sigbus_data->access_count_ >= 1);
+  assert(sigbus_data && sigbus_data->access_count >= 1);
 
-  if (--sigbus_data->access_count_ == 0) {
-    if (sigbus_data->fallback_mapping_used_) {
-      wl_resource_post_error(buffer->resource_, ZWN_SHM_ERROR_INVALID_FD,
+  if (--sigbus_data->access_count == 0) {
+    if (sigbus_data->fallback_mapping_used) {
+      wl_resource_post_error(buffer->resource, ZWN_SHM_ERROR_INVALID_FD,
           "error accessing SHM buffer");
-      sigbus_data->fallback_mapping_used_ = 0;
+      sigbus_data->fallback_mapping_used = 0;
     }
 
-    sigbus_data->current_pool_ = nullptr;
+    sigbus_data->current_pool = nullptr;
   }
 }
 ShmBuffer* get_buffer(struct wl_resource* resource) {
@@ -217,15 +217,15 @@ ShmBuffer* get_buffer(struct wl_resource* resource) {
   return nullptr;
 }
 void* get_buffer_data(ShmBuffer* buffer) {
-  if (buffer->pool_->external_refcount_ &&
-      (buffer->pool_->size_ != buffer->pool_->new_size_)) {
+  if (buffer->pool->external_refcount &&
+      (buffer->pool->size != buffer->pool->new_size)) {
     LOG_WARN(
         "Buffer address requested when its parent pool has an external "
         "reference and a deferred resize pending.");
   }
-  return buffer->pool_->data_ + buffer->offset_;  // NOLINT
+  return buffer->pool->data + buffer->offset;  // NOLINT
 }
 ssize_t get_buffer_size(ShmBuffer* buffer) {
-  return buffer->size_;
+  return buffer->size;
 }
 }  // namespace yaza::zwin::shm_buffer

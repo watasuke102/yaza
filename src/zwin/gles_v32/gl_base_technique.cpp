@@ -57,30 +57,30 @@ void GlBaseTechnique::commit() {
     this->commited_ = true;
   }
 
-  this->current_.program_changed_ = this->pending_.program_changed_;
-  if (this->pending_.program_changed_) {
-    this->current_.program_         = this->pending_.program_;
-    this->pending_.program_changed_ = false;
+  this->current_.program_changed = this->pending_.program_changed;
+  if (this->pending_.program_changed) {
+    this->current_.program         = this->pending_.program;
+    this->pending_.program_changed = false;
   }
-  if (auto* program = this->current_.program_.lock()) {
+  if (auto* program = this->current_.program.lock()) {
     program->commit();
   }
 
-  this->current_.vertex_array_changed_ = this->pending_.vertex_array_changed_;
-  if (this->pending_.vertex_array_changed_) {
-    this->current_.vertex_array_         = this->pending_.vertex_array_;
-    this->pending_.vertex_array_changed_ = false;
+  this->current_.vertex_array_changed = this->pending_.vertex_array_changed;
+  if (this->pending_.vertex_array_changed) {
+    this->current_.vertex_array         = this->pending_.vertex_array;
+    this->pending_.vertex_array_changed = false;
   }
-  if (auto* vertex_array = this->current_.vertex_array_.lock()) {
+  if (auto* vertex_array = this->current_.vertex_array.lock()) {
     vertex_array->commit();
   }
 
   DrawApiArgs::commit(
-      this->pending_.draw_api_args_, this->current_.draw_api_args_);
+      this->pending_.draw_api_args, this->current_.draw_api_args);
   UniformVariableList::commit(
-      this->pending_.uniform_vars_, this->current_.uniform_vars_);
+      this->pending_.uniform_vars, this->current_.uniform_vars);
   TextureBindingList::commit(
-      this->pending_.texture_bindings_, this->current_.texture_bindings_);
+      this->pending_.texture_bindings, this->current_.texture_bindings);
 }
 
 void GlBaseTechnique::sync(bool force_sync) {
@@ -89,62 +89,62 @@ void GlBaseTechnique::sync(bool force_sync) {
     this->proxy_ = zen::remote::server::CreateGlBaseTechnique(
         server::get().remote->channel_nonnull(), this->owner_->remote_id());
   }
-  const auto kShouldSync = [force_sync](bool changed) {
+  const auto should_sync = [force_sync](bool changed) {
     return force_sync || changed;
   };
 
-  if (auto* vertex_array = this->current_.vertex_array_.lock()) {
+  if (auto* vertex_array = this->current_.vertex_array.lock()) {
     vertex_array->sync(force_sync);
-    if (kShouldSync(this->current_.vertex_array_changed_)) {
+    if (should_sync(this->current_.vertex_array_changed)) {
       this->proxy_->get()->BindVertexArray(vertex_array->remote_id());
     }
   }
 
-  if (auto* program = this->current_.program_.lock()) {
+  if (auto* program = this->current_.program.lock()) {
     program->sync(force_sync);
-    if (kShouldSync(this->current_.program_changed_)) {
+    if (should_sync(this->current_.program_changed)) {
       this->proxy_->get()->BindProgram(program->remote_id());
     }
   }
-  this->current_.texture_bindings_.sync(this->proxy_.value(), force_sync);
-  this->current_.uniform_vars_.sync(this->proxy_.value(), force_sync);
-  this->current_.draw_api_args_.sync(this->proxy_.value(), force_sync);
+  this->current_.texture_bindings.sync(this->proxy_.value(), force_sync);
+  this->current_.uniform_vars.sync(this->proxy_.value(), force_sync);
+  this->current_.draw_api_args.sync(this->proxy_.value(), force_sync);
 }
 
 void GlBaseTechnique::request_bind_program(wl_resource* resource) {
   auto* tmp = static_cast<util::UniPtr<gl_program::GlProgram>*>(
       wl_resource_get_user_data(resource));
-  this->pending_.program_         = (*tmp).weak();
-  this->pending_.program_changed_ = true;
+  this->pending_.program         = (*tmp).weak();
+  this->pending_.program_changed = true;
 }
 void GlBaseTechnique::request_bind_vertex_array(wl_resource* resource) {
   auto* tmp = static_cast<util::UniPtr<gl_vertex_array::GlVertexArray>*>(
       wl_resource_get_user_data(resource));
-  this->pending_.vertex_array_         = (*tmp).weak();
-  this->pending_.vertex_array_changed_ = true;
+  this->pending_.vertex_array         = (*tmp).weak();
+  this->pending_.vertex_array_changed = true;
 }
 void GlBaseTechnique::request_bind_texture(uint32_t binding, const char* name,
     uint32_t target, util::WeakPtr<gl_texture::GlTexture>&& texture,
     util::WeakPtr<gl_sampler::GlSampler>&& sampler) {
-  this->pending_.texture_bindings_.emplace(
+  this->pending_.texture_bindings.emplace(
       binding, name, target, std::move(texture), std::move(sampler));
 }
 void GlBaseTechnique::new_uniform_var(
     zwn_gl_base_technique_uniform_variable_type type, uint32_t location,
     const char* name, uint32_t col, uint32_t row, uint32_t count,
     bool transpose, void* value) {
-  this->pending_.uniform_vars_.emplace(
+  this->pending_.uniform_vars.emplace(
       type, location, name, col, row, count, transpose, value);
 }
 void GlBaseTechnique::request_draw_arrays(
     uint32_t mode, int32_t first, uint32_t count) {
-  this->pending_.draw_api_args_.set_arrays_args(mode, first, count);
+  this->pending_.draw_api_args.set_arrays_args(mode, first, count);
 }
 void GlBaseTechnique::request_draw_elements(uint32_t mode, uint32_t count,
     uint32_t type, uint64_t offset, wl_resource* element_array_buffer) {
   auto* tmp = static_cast<util::UniPtr<gl_buffer::GlBuffer>*>(
       wl_resource_get_user_data(element_array_buffer));
-  this->pending_.draw_api_args_.set_elements_args(
+  this->pending_.draw_api_args.set_elements_args(
       mode, count, type, offset, (*tmp).weak());
 }
 
@@ -268,7 +268,7 @@ void draw_elements(wl_client* /*client*/, wl_resource* resource, uint32_t mode,
   std::memcpy(&offset, offset_array->data, offset_array->size);
   self->request_draw_elements(mode, count, type, offset, element_array_buffer);
 }
-const struct zwn_gl_base_technique_interface kImpl = {
+constexpr struct zwn_gl_base_technique_interface kImpl = {
     .destroy           = destroy,
     .bind_program      = bind_program,
     .bind_vertex_array = bind_vertex_array,

@@ -39,15 +39,15 @@ constexpr auto* kFragShader = GLSL(
   out vec4 color;
 
   void main() {
-    color = vec4(0.0, 1.0, 0.0, length(pos)*20.0);
+    color = vec4(0.0, 1.0, 0.0, 1.0);
   }
 );
 // clang-format on
 }  // namespace
 Seat::Seat()
     : ray_vertices_{
-          {.x_ = 0.F, .y_ = 0.F, .z_ = 0.F, .u_ = 0.F, .v_ = 0.F},
-          {.x_ = 0.F, .y_ = 0.F, .z_ = 0.F, .u_ = 0.F, .v_ = 0.F},
+          {.x = 0.F, .y = 0.F, .z = 0.F, .u = 0.F, .v = 0.F},
+          {.x = 0.F, .y = 0.F, .z = 0.F, .u = 0.F, .v = 0.F},
 } {
   if (server::get().remote->has_session()) {
     this->init_ray_renderer();
@@ -92,10 +92,10 @@ void Seat::init_ray_renderer() {
 void Seat::update_ray_vertices() {
   assert(this->ray_renderer_ != nullptr);
   auto r = 1.5F;
-  this->ray_vertices_[1].x_ =
+  this->ray_vertices_[1].x =
       r * sin(this->pointing_.polar_) * sin(this->pointing_.azimuthal_),
-  this->ray_vertices_[1].y_ = r * cos(this->pointing_.polar_),
-  this->ray_vertices_[1].z_ =
+  this->ray_vertices_[1].y = r * cos(this->pointing_.polar_),
+  this->ray_vertices_[1].z =
       r * sin(this->pointing_.polar_) * cos(this->pointing_.azimuthal_);
   this->ray_renderer_->set_vertex(this->ray_vertices_);
 }
@@ -128,7 +128,7 @@ void get_touch(wl_client* client, wl_resource* /*resource*/, uint32_t /*id*/) {
 void release(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
 }
-const struct wl_seat_interface kImpl = {
+constexpr struct wl_seat_interface kImpl = {
     .get_pointer  = get_pointer,
     .get_keyboard = get_keyboard,
     .get_touch    = get_touch,
