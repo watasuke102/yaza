@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <glm/ext/vector_float3.hpp>
 #include <memory>
+#include <numbers>
 #include <optional>
 #include <utility>
 
