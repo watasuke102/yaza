@@ -106,13 +106,14 @@ void Surface::update_geom() {
   this->geom_.y() = 0.85F + kRadiusFromOrigin * cos(this->polar_);
   this->geom_.z() =
       kRadiusFromOrigin * sin(this->polar_) * cos(this->azimuthal_);
+
+  // add $pi$ to $azimuthal$ to let Surface look at the camera
   this->geom_.rot() =
-      glm::quat({0.F, std::numbers::pi + this->azimuthal_, 0.F});
-  auto p               = glm::normalize(this->geom_.pos());
-  this->geom_.rot()    = glm::rotate(this->geom_.rot(),
-         (std::numbers::pi_v<float> / 2.F) - this->polar_,
-         glm::vec3(1.F, 0.F, 0.F) -
-             (glm::dot({1.F, 0.F, 0.F}, p) / glm::length(p) * p));
+      glm::angleAxis(std::numbers::pi_v<float> + this->azimuthal_,
+          glm::vec3{0.F, 1.F, 0.F}) *
+      glm::angleAxis((std::numbers::pi_v<float> / 2.F) - this->polar_,
+          glm::vec3{1.F, 0.F, 0.F});
+
   this->geom_.width()  = static_cast<float>(this->tex_width_) / kPixelPerMeter;
   this->geom_.height() = static_cast<float>(this->tex_height_) / kPixelPerMeter;
   glm::mat4 scale      = glm::scale(glm::mat4(1.F), this->geom_.size());

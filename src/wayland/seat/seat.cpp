@@ -208,8 +208,8 @@ void Seat::try_leave_focused_surface() {
         + |
        /  |
      +z
-asterisk pos is expressed by (polar, azimuthal) = (0, 0)
-    plus pos is expressed by (polar, azimuthal) = (0, pi/2)
+asterisk pos is expressed by (polar, azimuthal) = (0, pi/2)
+    plus pos is expressed by (polar, azimuthal) = (0, 0)
 */
 void Seat::init_ray_renderer() {
   this->ray_renderer_ = std::make_unique<Renderer>(kVertShader, kFragShader);
