@@ -14,8 +14,11 @@ XdgSurface::XdgSurface(uint32_t id, wl_resource* resource,
     : wl_surface_(std::move(surface)), resource_(resource), id_(id) {
   this->wl_surface_committed_listener_.set_handler(
       [this](std::nullptr_t* /*data*/) {
-        xdg_surface_send_configure(
-            this->resource_, server::get().next_serial());
+        if (!this->activated_) {
+          this->activated_ = true;
+          xdg_surface_send_configure(
+              this->resource_, server::get().next_serial());
+        }
       });
   this->wl_surface_.lock()->listen_committed(
       this->wl_surface_committed_listener_);

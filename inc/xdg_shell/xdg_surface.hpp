@@ -18,6 +18,8 @@ class XdgSurface {
   ~XdgSurface();
 
  private:
+  bool activated_ = false;
+
   util::WeakPtr<wayland::surface::Surface> wl_surface_;
   util::Listener<std::nullptr_t*>          wl_surface_committed_listener_;
   wl_resource*                             resource_;
