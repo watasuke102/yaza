@@ -55,6 +55,7 @@ class Surface {
   uint32_t       tex_width_;
   uint32_t       tex_height_;
 
+  float                     polar_     = std::numbers::pi / 2.F;
   float                     azimuthal_ = std::numbers::pi;
   util::Box                 geom_;
   glm::mat4                 geom_mat_;  // use on checking for intersection
