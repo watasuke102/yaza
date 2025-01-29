@@ -111,10 +111,12 @@ void Seat::mouse_button(wl_pointer_button_state state) {
 }
 
 void Seat::move_rel_pointing(float polar, float azimuthal) {
-  constexpr float kPolarMin = std::numbers::pi / 8.F;
-  constexpr float kPolarMax = std::numbers::pi - kPolarMin;
+  constexpr float kPolarMin  = std::numbers::pi / 8.F;
+  constexpr float kPolarMax  = std::numbers::pi - kPolarMin;
+  auto            diff_polar = this->pointing_.polar;
   this->pointing_.polar =
       std::clamp(this->pointing_.polar + polar, kPolarMin, kPolarMax);
+  diff_polar = this->pointing_.polar - diff_polar;
   this->pointing_.azimuthal += azimuthal;
   this->update_ray_vertices();
   if (this->ray_renderer_) {
@@ -127,7 +129,7 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
       break;
     case FocusedSurfaceState::MOVING:
       if (auto* surface = this->focused_surface_.lock()) {
-        surface->move(polar, azimuthal);
+        surface->move(diff_polar, azimuthal);
       }
       break;
   }
