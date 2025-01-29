@@ -16,7 +16,6 @@
 #include <glm/geometric.hpp>
 #include <memory>
 #include <optional>
-#include <utility>
 #include <vector>
 
 #include "common.hpp"
@@ -135,35 +134,47 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
   }
 }
 void Seat::check_surface_intersection() {
-  auto direction = glm::vec3(this->ray_vertices_[1].x, this->ray_vertices_[1].y,
-      this->ray_vertices_[1].z);
-  auto& surfaces = server::get().surfaces;
+  const auto direction = glm::vec3(this->ray_vertices_[1].x,
+      this->ray_vertices_[1].y, this->ray_vertices_[1].z);
 
+  util::WeakPtr<surface::Surface>              nearest_surface;
+  std::optional<surface::SurfaceIntersectInfo> nearest_surface_info =
+      std::nullopt;
+  auto& surfaces = server::get().surfaces;
   for (auto it = surfaces.begin(); it != surfaces.end();) {
     if (auto* surface = it->lock()) {
-      util::WeakPtr<surface::Surface> surface_weakptr = *it;
-      ++it;
       auto result = surface->intersected_at(this->kOrigin, direction);
       if (!result.has_value()) {
+        ++it;
         continue;
       }
-      wl_resource* wl_pointer = this->pointer_resources[surface->client()];
-      if (!wl_pointer) {
-        return;
+      if (!nearest_surface_info.has_value() ||
+          result->distance <= nearest_surface_info->distance) {
+        nearest_surface      = *it;
+        nearest_surface_info = result.value();
       }
-      auto x = wl_fixed_from_double(result->first);
-      auto y = wl_fixed_from_double(result->second);
-      this->set_focused_surface(surface_weakptr, wl_pointer, x, y);
-      wl_pointer_send_motion(wl_pointer, util::now_msec(), x, y);
-      wl_pointer_send_frame(wl_pointer);
-      return;
-    } else {  // NOLINT(readability-else-after-return): ???
+      ++it;
+    } else {
       it = surfaces.erase(it);
     }
   }
-  // there is no intersected surface
-  this->try_leave_focused_surface();
-  this->focused_surface_.reset();
+
+  if (nearest_surface_info.has_value()) {
+    wl_resource* wl_pointer =
+        this->pointer_resources[nearest_surface.lock()->client()];
+    if (!wl_pointer) {
+      return;
+    }
+    auto x = wl_fixed_from_double(nearest_surface_info->sx);
+    auto y = wl_fixed_from_double(nearest_surface_info->sy);
+    this->set_focused_surface(nearest_surface, wl_pointer, x, y);
+    wl_pointer_send_motion(wl_pointer, util::now_msec(), x, y);
+    wl_pointer_send_frame(wl_pointer);
+  } else {
+    // there is no intersected surface
+    this->try_leave_focused_surface();
+    this->focused_surface_.reset();
+  }
 }
 
 void Seat::set_focused_surface(util::WeakPtr<surface::Surface> surface,
@@ -210,7 +221,7 @@ void Seat::init_ray_renderer() {
   this->ray_renderer_->commit();
 }
 void Seat::update_ray_vertices() {
-  auto r = 1.5F;
+  auto r = 1.9F;
   this->ray_vertices_[1].x =
       r * sin(this->pointing_.polar) * sin(this->pointing_.azimuthal),
   this->ray_vertices_[1].y = r * cos(this->pointing_.polar),

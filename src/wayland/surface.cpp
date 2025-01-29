@@ -15,7 +15,6 @@
 #include <glm/geometric.hpp>
 #include <memory>
 #include <optional>
-#include <utility>
 
 #include "common.hpp"
 #include "remote/session.hpp"
@@ -148,7 +147,7 @@ void Surface::set_callback(wl_resource* resource) {
   this->pending_.callback = resource;
 }
 
-std::optional<std::pair<float, float>> Surface::intersected_at(
+std::optional<SurfaceIntersectInfo> Surface::intersected_at(
     const glm::vec3& origin, const glm::vec3& direction) {
   glm::vec3 vert_left_bottom =
       this->geom_mat_ * glm::vec4(-1.F, -1.F, 0.F, 1.F);
@@ -160,8 +159,9 @@ std::optional<std::pair<float, float>> Surface::intersected_at(
   if (!result.has_value()) {
     return std::nullopt;
   }
-  return std::make_pair(static_cast<float>(this->tex_width_) * result->u,
-      static_cast<float>(this->tex_height_) * (1.F - result->v));
+  return SurfaceIntersectInfo{.distance = result->distance,
+      .sx = static_cast<float>(this->tex_width_) * result->u,
+      .sy = static_cast<float>(this->tex_height_) * (1.F - result->v)};
 }
 void Surface::listen_committed(util::Listener<std::nullptr_t*>& listener) {
   this->events_.committed.add_listener(listener);

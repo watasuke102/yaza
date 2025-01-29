@@ -9,7 +9,6 @@
 #include <memory>
 #include <numbers>
 #include <optional>
-#include <utility>
 
 #include "common.hpp"
 #include "remote/session.hpp"
@@ -19,6 +18,11 @@
 #include "util/signal.hpp"
 
 namespace yaza::wayland::surface {
+struct SurfaceIntersectInfo {
+  float distance;
+  float sx, sy;  // surface-local coordinate
+};
+
 class Surface {
  public:
   DISABLE_MOVE_AND_COPY(Surface);
@@ -29,8 +33,8 @@ class Surface {
   void set_callback(wl_resource* resource);
   void commit();
 
-  void                                   move(float polar, float azimuthal);
-  std::optional<std::pair<float, float>> intersected_at(
+  void                                move(float polar, float azimuthal);
+  std::optional<SurfaceIntersectInfo> intersected_at(
       const glm::vec3& origin, const glm::vec3& direction);
   void listen_committed(util::Listener<std::nullptr_t*>& listener);
 
