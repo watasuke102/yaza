@@ -5,6 +5,7 @@
 #include <wayland-server.h>
 #include <wayland-util.h>
 
+#include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <memory>
 #include <numbers>
@@ -45,15 +46,19 @@ class Seat {
       wl_resource* wl_pointer, wl_fixed_t x, wl_fixed_t y);
   void try_leave_focused_surface();
 
-  const glm::vec3 kOrigin = glm::vec3(0.F, 0.849F, -0.001F);
+  // TODO: create class
+  const glm::vec3        kBaseDirection = glm::vec3(0.F, 0.F, 1.F);
+  const glm::vec3        kOrigin        = glm::vec3(0.F, 0.849F, -0.001F);
+  constexpr static float kDefaultLen    = 1.9F;
   struct {
-    float polar     = std::numbers::pi / 2.F;  // [0, pi]
-    float azimuthal = std::numbers::pi;        // x-z plane, [0, 2pi]
-  } pointing_;
-  std::vector<BufferElement> ray_vertices_;
-  std::unique_ptr<Renderer>  ray_renderer_;
-  void                       init_ray_renderer();
-  void                       update_ray_vertices();
+    float     polar     = std::numbers::pi / 2.F;  // [0, pi]
+    float     azimuthal = std::numbers::pi;        // x-z plane, [0, 2pi]
+    float     length    = Seat::kDefaultLen;
+    glm::quat rot;
+  } ray_;
+  std::unique_ptr<Renderer> ray_renderer_;
+  void                      init_ray_renderer();
+  void                      update_ray_rot();
 
   std::unique_ptr<InputListenServer> input_listen_server_;
 

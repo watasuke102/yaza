@@ -10,10 +10,15 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
+#include <glm/ext/quaternion_transform.hpp>
 #include <glm/ext/quaternion_trigonometric.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/geometric.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/string_cast.hpp>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -31,12 +36,13 @@ namespace yaza::wayland::seat {
 namespace {
 // clang-format off
 constexpr auto* kVertShader = GLSL(
-  uniform mat4 zMVP;
+  uniform mat4 zVP;
+  uniform mat4 local_model;
   layout(location = 0) in vec3 pos_in;
   out vec3 pos;
 
   void main() {
-    gl_Position = zMVP * vec4(pos_in, 1.0);
+    gl_Position = zVP * local_model * vec4(pos_in, 1.0);
     pos = gl_Position.xyz;
   }
 );
@@ -50,11 +56,7 @@ constexpr auto* kFragShader = GLSL(
 );
 // clang-format on
 }  // namespace
-Seat::Seat()
-    : ray_vertices_{
-          {.x = 0.F, .y = 0.F, .z = 0.F, .u = 0.F, .v = 0.F},
-          {.x = 0.F, .y = 0.F, .z = 0.F, .u = 0.F, .v = 0.F},
-} {
+Seat::Seat() {
   if (server::get().remote->has_session()) {
     this->init_ray_renderer();
   }
@@ -85,6 +87,7 @@ void Seat::request_start_move(wl_client* client) {
   if (auto* wl_pointer = this->pointer_resources[surface->client()]) {
     wl_pointer_send_leave(
         wl_pointer, server::get().next_serial(), surface->resource());
+    wl_pointer_send_frame(wl_pointer);
   }
   this->surface_state_ = FocusedSurfaceState::MOVING;
 }
@@ -112,12 +115,11 @@ void Seat::mouse_button(wl_pointer_button_state state) {
 void Seat::move_rel_pointing(float polar, float azimuthal) {
   constexpr float kPolarMin  = std::numbers::pi / 8.F;
   constexpr float kPolarMax  = std::numbers::pi - kPolarMin;
-  auto            diff_polar = this->pointing_.polar;
-  this->pointing_.polar =
-      std::clamp(this->pointing_.polar + polar, kPolarMin, kPolarMax);
-  diff_polar = this->pointing_.polar - diff_polar;
-  this->pointing_.azimuthal += azimuthal;
-  this->update_ray_vertices();
+  auto            diff_polar = this->ray_.polar;
+  this->ray_.polar = std::clamp(this->ray_.polar + polar, kPolarMin, kPolarMax);
+  diff_polar       = this->ray_.polar - diff_polar;
+  this->ray_.azimuthal += azimuthal;
+  this->update_ray_rot();
   if (this->ray_renderer_) {
     this->ray_renderer_->commit();
   }
@@ -134,8 +136,7 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
   }
 }
 void Seat::check_surface_intersection() {
-  const auto direction = glm::vec3(this->ray_vertices_[1].x,
-      this->ray_vertices_[1].y, this->ray_vertices_[1].z);
+  const auto direction = glm::rotate(this->ray_.rot, this->kBaseDirection);
 
   util::WeakPtr<surface::Surface>              nearest_surface;
   std::optional<surface::SurfaceIntersectInfo> nearest_surface_info =
@@ -213,22 +214,32 @@ asterisk pos is expressed by (polar, azimuthal) = (0, pi/2)
 */
 void Seat::init_ray_renderer() {
   this->ray_renderer_ = std::make_unique<Renderer>(kVertShader, kFragShader);
-  std::vector<BufferElement> v;
-  this->ray_renderer_->move_abs(
-      this->kOrigin.x, this->kOrigin.y, this->kOrigin.z);
+  this->ray_renderer_->set_vertex({
+      {.x = 0.F, .y = 0.F, .z = 0.F, .u = 0.F, .v = 0.F},
+      {
+       .x = this->kBaseDirection.x,
+       .y = this->kBaseDirection.y,
+       .z = this->kBaseDirection.z,
+       .u = 0.F,
+       .v = 0.F,
+       },
+  });
   this->ray_renderer_->request_draw_arrays(GL_LINE_STRIP, 0, 2);
-  this->update_ray_vertices();
+  this->update_ray_rot();
   this->ray_renderer_->commit();
 }
-void Seat::update_ray_vertices() {
-  auto r = 1.9F;
-  this->ray_vertices_[1].x =
-      r * sin(this->pointing_.polar) * sin(this->pointing_.azimuthal),
-  this->ray_vertices_[1].y = r * cos(this->pointing_.polar),
-  this->ray_vertices_[1].z =
-      r * sin(this->pointing_.polar) * cos(this->pointing_.azimuthal);
+void Seat::update_ray_rot() {
+  this->ray_.rot =
+      glm::angleAxis(this->ray_.azimuthal, glm::vec3{0.F, 1.F, 0.F}) *
+      glm::angleAxis((std::numbers::pi_v<float> / 2.F) - this->ray_.polar,
+          glm::vec3{-1.F, 0.F, 0.F});
+
   if (this->ray_renderer_) {
-    this->ray_renderer_->set_vertex(this->ray_vertices_);
+    glm::mat4 mat =
+        glm::translate(glm::mat4(1.F), this->kOrigin) *
+        glm::toMat4(this->ray_.rot) *
+        glm::scale(glm::mat4(1.F), glm::vec3{this->ray_.length, 1.F, 1.F});
+    this->ray_renderer_->set_uniform_matrix(0, "local_model", mat);
   }
 }
 
