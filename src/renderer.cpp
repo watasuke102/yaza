@@ -8,6 +8,7 @@
 #include <zen-remote/server/gl-vertex-array.h>
 
 #include <glm/ext/quaternion_float.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <memory>
 
 #include "server.hpp"
@@ -96,7 +97,7 @@ void Renderer::request_draw_arrays(
 }
 void Renderer::commit() {
   this->virtual_object_->Move(
-      static_cast<float*>(&this->pos_.x), static_cast<float*>(&this->rot_.x));
+      glm::value_ptr(this->pos_), glm::value_ptr(this->rot_));
   this->virtual_object_->Commit();
 }
 }  // namespace yaza

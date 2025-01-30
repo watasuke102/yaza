@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <ctime>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/vec3.hpp>
 
 #include "common.hpp"
@@ -85,8 +86,7 @@ void VirtualObject::sync(bool force_sync) {
         server::get().remote->channel_nonnull());
     auto v = glm::vec3{0.F, 1.F, -3.F};
     auto q = glm::quat();
-    this->proxy_->get()->Move(
-        static_cast<float*>(&v.x), static_cast<float*>(&q.x));
+    this->proxy_->get()->Move(glm::value_ptr(v), glm::value_ptr(q));
   }
   for (auto* unit : this->rendering_unit_list_) {
     unit->sync(force_sync);
