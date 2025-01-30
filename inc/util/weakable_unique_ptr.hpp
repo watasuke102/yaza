@@ -62,6 +62,9 @@ class WeakPtr {
     this->ptr_.swap(other.ptr_);
   }
 
+  T* operator->() const {
+    return this->lock();
+  }
   bool operator==(const WeakPtr<T>& other) {
     return this->lock() == other.lock();
   }

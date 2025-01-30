@@ -33,6 +33,9 @@ class Seat {
 
   std::unordered_map<wl_client*, wl_resource* /*wl_pointer*/> pointer_resources;
 
+  void set_surface_as_cursor(
+      wl_resource* surface_resource, int32_t hotspot_x, int32_t hotspot_y);
+
   void mouse_button(wl_pointer_button_state state);
   void request_start_move(wl_client* client);
   void move_rel_pointing(float polar, float azimuthal);
@@ -45,6 +48,11 @@ class Seat {
   void set_focused_surface(util::WeakPtr<surface::Surface> surface,
       wl_resource* wl_pointer, wl_fixed_t x, wl_fixed_t y);
   void try_leave_focused_surface();
+
+  util::WeakPtr<surface::Surface> cursor_;
+  int32_t                         hotspot_x_;
+  int32_t                         hotspot_y_;
+  void                            move_cursor();
 
   // TODO: create class
   const glm::vec3        kBaseDirection = glm::vec3(0.F, 0.F, 1.F);

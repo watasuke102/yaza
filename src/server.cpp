@@ -9,7 +9,9 @@
 
 #include "common.hpp"
 #include "remote/remote.hpp"
+#include "util/weakable_unique_ptr.hpp"
 #include "wayland/seat/seat.hpp"
+#include "wayland/surface.hpp"
 #include "wayland/wayland.hpp"
 #include "xdg_shell/xdg_shell.hpp"
 #include "zwin/zwin.hpp"
@@ -114,5 +116,12 @@ uint32_t Server::next_serial() {
 }
 wl_event_loop* Server::loop() {
   return wl_display_get_event_loop(this->wl_display_);
+}
+
+void Server::remove_expired_surfaces() {
+  this->surfaces.remove_if(
+      [](const util::WeakPtr<wayland::surface::Surface>& s) {
+        return !s.lock();
+      });
 }
 }  // namespace yaza::server

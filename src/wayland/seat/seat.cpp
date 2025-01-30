@@ -8,6 +8,7 @@
 #include <wayland-util.h>
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <cstdlib>
 #include <glm/ext/matrix_float4x4.hpp>
@@ -76,20 +77,42 @@ Seat::Seat() {
   this->input_listen_server_ = std::make_unique<InputListenServer>();
 }
 
-void Seat::request_start_move(wl_client* client) {
-  auto* surface = this->focused_surface_.lock();
-  if (!surface) {
-    return;
+void Seat::set_surface_as_cursor(
+    wl_resource* surface_resource, int32_t hotspot_x, int32_t hotspot_y) {
+  this->hotspot_x_ = hotspot_x;
+  this->hotspot_y_ = hotspot_y;
+
+  if (this->cursor_.lock()) {
+    if (this->cursor_->resource() == surface_resource) {
+      return;
+    }
+    server::get().surfaces.push_front(std::move(this->cursor_));
   }
-  if (surface->client() != client) {
-    return;
+  assert(this->cursor_.lock() == nullptr);
+
+  server::get().remove_expired_surfaces();
+  auto& surfaces = server::get().surfaces;
+  auto  it       = std::find_if(surfaces.begin(), surfaces.end(),
+             [surface_resource](util::WeakPtr<surface::Surface>& s) {
+        return s->resource() == surface_resource;
+      });
+
+  if (it != surfaces.end()) {
+    this->cursor_ = *it;
+    surfaces.erase(it);
+    assert(this->cursor_.lock() != nullptr);
+    this->move_cursor();
   }
-  if (auto* wl_pointer = this->pointer_resources[surface->client()]) {
-    wl_pointer_send_leave(
-        wl_pointer, server::get().next_serial(), surface->resource());
-    wl_pointer_send_frame(wl_pointer);
-  }
-  this->surface_state_ = FocusedSurfaceState::MOVING;
+}
+void Seat::move_cursor() {
+  // FIXME: temporal length (length of cursor pos vector should be shorter)
+  const auto pos =
+      this->kOrigin +
+      glm::vec3{                                                    //
+          0.4 * sin(this->ray_.polar) * sin(this->ray_.azimuthal),  //
+          0.4 * cos(this->ray_.polar),                              //
+          0.4 * sin(this->ray_.polar) * cos(this->ray_.azimuthal)};
+  this->cursor_->move(pos, this->ray_.rot);
 }
 
 void Seat::mouse_button(wl_pointer_button_state state) {
@@ -112,6 +135,22 @@ void Seat::mouse_button(wl_pointer_button_state state) {
   }
 }
 
+void Seat::request_start_move(wl_client* client) {
+  auto* surface = this->focused_surface_.lock();
+  if (!surface) {
+    return;
+  }
+  if (surface->client() != client) {
+    return;
+  }
+  if (auto* wl_pointer = this->pointer_resources[surface->client()]) {
+    wl_pointer_send_leave(
+        wl_pointer, server::get().next_serial(), surface->resource());
+    wl_pointer_send_frame(wl_pointer);
+  }
+  this->surface_state_ = FocusedSurfaceState::MOVING;
+}
+
 void Seat::move_rel_pointing(float polar, float azimuthal) {
   constexpr float kPolarMin  = std::numbers::pi / 8.F;
   constexpr float kPolarMax  = std::numbers::pi - kPolarMin;
@@ -122,6 +161,9 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
   this->update_ray_rot();
   if (this->ray_renderer_) {
     this->ray_renderer_->commit();
+  }
+  if (this->cursor_.lock()) {
+    this->move_cursor();
   }
 
   switch (this->surface_state_) {

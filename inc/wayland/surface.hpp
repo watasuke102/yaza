@@ -33,7 +33,8 @@ class Surface {
   void set_callback(wl_resource* resource);
   void commit();
 
-  void                                move(float polar, float azimuthal);
+  void move(float polar, float azimuthal);  // for DEFAULT
+  void move(glm::vec3 pos, glm::quat rot);  // for CURSOR
   std::optional<SurfaceIntersectInfo> intersected_at(
       const glm::vec3& origin, const glm::vec3& direction);
   void listen_committed(util::Listener<std::nullptr_t*>& listener);
@@ -58,12 +59,14 @@ class Surface {
   util::DataPool texture_;
   uint32_t       tex_width_;
   uint32_t       tex_height_;
+  void           set_texture_size(uint32_t width, uint32_t height);
 
   float                     polar_     = std::numbers::pi / 2.F;
   float                     azimuthal_ = std::numbers::pi;
   util::Box                 geom_;
   glm::mat4                 geom_mat_;  // use on checking for intersection
-  void                      update_geom();
+  void                      update_pos_and_rot();
+  void                      sync_geom();
   std::unique_ptr<Renderer> renderer_;
   void                      init_renderer();
 

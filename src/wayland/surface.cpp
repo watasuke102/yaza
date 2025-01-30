@@ -99,14 +99,15 @@ void Surface::init_renderer() {
       1, 2, GL_FLOAT, uv.data(), sizeof(float) * uv.size());  // NOLINT
   this->renderer_->request_draw_arrays(GL_TRIANGLE_FAN, 0, 4);
 
-  this->update_geom();
+  update_pos_and_rot();
   if (this->texture_.has_data()) {
     this->renderer_->set_texture(
         this->texture_, this->tex_width_, this->tex_height_);
     this->renderer_->commit();
   }
 }
-void Surface::update_geom() {
+
+void Surface::update_pos_and_rot() {
   this->geom_.x() =
       kRadiusFromOrigin * sin(this->polar_) * sin(this->azimuthal_);
   this->geom_.y() = 0.85F + kRadiusFromOrigin * cos(this->polar_);
@@ -119,24 +120,44 @@ void Surface::update_geom() {
           glm::vec3{0.F, 1.F, 0.F}) *
       glm::angleAxis((std::numbers::pi_v<float> / 2.F) - this->polar_,
           glm::vec3{1.F, 0.F, 0.F});
+  // updating geom_.size is the responsibility of Surface::set_texture_size()
 
-  this->geom_.width()  = static_cast<float>(this->tex_width_) / kPixelPerMeter;
-  this->geom_.height() = static_cast<float>(this->tex_height_) / kPixelPerMeter;
-  glm::mat4 scale      = glm::scale(glm::mat4(1.F), this->geom_.size());
-  this->geom_mat_      = this->geom_.mat() * scale;
-  if (!this->renderer_) {
-    return;
+  if (this->renderer_) {
+    this->sync_geom();
   }
+}
+void Surface::sync_geom() {
+  glm::mat4 scale = glm::scale(glm::mat4(1.F), this->geom_.size());
+  this->geom_mat_ = this->geom_.mat() * scale;
+  this->renderer_->set_uniform_matrix(0, "surface_scale", scale);
   this->renderer_->move_abs(this->geom_.pos());
   this->renderer_->set_rot(this->geom_.rot());
-  this->renderer_->set_uniform_matrix(0, "surface_scale", scale);
+}
+void Surface::set_texture_size(uint32_t width, uint32_t height) {
+  this->tex_width_     = width;
+  this->tex_height_    = height;
+  this->geom_.width()  = static_cast<float>(this->tex_width_) / kPixelPerMeter;
+  this->geom_.height() = static_cast<float>(this->tex_height_) / kPixelPerMeter;
+  if (this->renderer_) {
+    this->sync_geom();
+  }
 }
 
 void Surface::move(float polar, float azimuthal) {
   this->polar_ += polar;
   this->azimuthal_ += azimuthal;
-  this->update_geom();
+  update_pos_and_rot();
+
   if (this->renderer_) {
+    this->renderer_->commit();
+  }
+}
+void Surface::move(glm::vec3 pos, glm::quat rot) {
+  this->geom_.pos() = pos;
+  this->geom_.rot() =
+      rot * glm::angleAxis(std::numbers::pi_v<float>, glm::vec3{0.F, 1.F, 0.F});
+  if (this->renderer_) {
+    this->sync_geom();
     this->renderer_->commit();
   }
 }
@@ -184,9 +205,8 @@ void Surface::commit() {
     auto           format     = wl_shm_buffer_get_format(shm_buffer);
     if (format == WL_SHM_FORMAT_ARGB8888 || format == WL_SHM_FORMAT_XRGB8888) {
       this->texture_.read_wl_surface_texture(shm_buffer);
-      this->tex_width_  = wl_shm_buffer_get_width(shm_buffer);
-      this->tex_height_ = wl_shm_buffer_get_height(shm_buffer);
-      this->update_geom();
+      this->set_texture_size(wl_shm_buffer_get_width(shm_buffer),
+          wl_shm_buffer_get_height(shm_buffer));
     } else {
       LOG_ERR("yaza does not support surface buffer format (%u)", format);
     }

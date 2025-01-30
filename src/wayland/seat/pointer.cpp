@@ -10,9 +10,10 @@
 namespace yaza::wayland::seat::pointer {
 namespace {
 void set_cursor(wl_client* /*client*/, wl_resource* /*resource*/,
-    uint32_t /*serial*/, wl_resource* /*surface*/, int32_t /*hotspot_x*/,
-    int32_t /*hotspot_y*/) {
-  // TODO
+    uint32_t /*serial*/, wl_resource* surface_resource, int32_t hotspot_x,
+    int32_t hotspot_y) {
+  server::get().seat->set_surface_as_cursor(
+      surface_resource, hotspot_x, hotspot_y);
 }
 void release(wl_client* client, wl_resource* resource) {
   wl_resource_destroy(resource);
@@ -33,6 +34,6 @@ void create(wl_client* client, uint32_t id) {
   }
   wl_resource_set_implementation(resource, &kImpl, nullptr, nullptr);
   server::get().seat->pointer_resources[client] = resource;
-  LOG_DEBUG("created: wl_pointer@%d", id);
+  LOG_DEBUG("created: wl_pointer@%d for client %p", id, (void*)client);
 }
 }  // namespace yaza::wayland::seat::pointer

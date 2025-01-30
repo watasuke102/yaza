@@ -32,6 +32,7 @@ class Server {
   remote::Remote*                                     remote;
   wayland::seat::Seat*                                seat;
   std::list<util::WeakPtr<wayland::surface::Surface>> surfaces;
+  void                                                remove_expired_surfaces();
 
  private:
   Server()  = default;
