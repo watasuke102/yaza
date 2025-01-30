@@ -214,16 +214,16 @@ asterisk pos is expressed by (polar, azimuthal) = (0, pi/2)
 */
 void Seat::init_ray_renderer() {
   this->ray_renderer_ = std::make_unique<Renderer>(kVertShader, kFragShader);
-  this->ray_renderer_->set_vertex({
-      {.x = 0.F, .y = 0.F, .z = 0.F, .u = 0.F, .v = 0.F},
-      {
-       .x = this->kBaseDirection.x,
-       .y = this->kBaseDirection.y,
-       .z = this->kBaseDirection.z,
-       .u = 0.F,
-       .v = 0.F,
-       },
-  });
+  std::vector<float> vertices = {
+      0.F,
+      0.F,
+      0.F,  //
+      this->kBaseDirection.x,
+      this->kBaseDirection.y,
+      this->kBaseDirection.z,
+  };
+  this->ray_renderer_->register_buffer(0, 3, GL_FLOAT, vertices.data(),
+      sizeof(float) * vertices.size());  // NOLINT
   this->ray_renderer_->request_draw_arrays(GL_LINE_STRIP, 0, 2);
   this->update_ray_rot();
   this->ray_renderer_->commit();

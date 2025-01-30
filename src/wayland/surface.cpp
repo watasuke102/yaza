@@ -81,18 +81,24 @@ Surface::~Surface() {
 }
 void Surface::init_renderer() {
   this->renderer_ = std::make_unique<Renderer>(kVertShader, kFragShader);
-  this->renderer_->set_vertex(std::vector<BufferElement>{
-      /*
-        3 -- 0
-        |    |
-        2 -- 1
-        */
-      {.x = +1.F, .y = +1.F, .z = -0.F, .u = 1.F, .v = 0.F},
-      {.x = +1.F, .y = -1.F, .z = -0.F, .u = 1.F, .v = 1.F},
-      {.x = -1.F, .y = -1.F, .z = -0.F, .u = 0.F, .v = 1.F},
-      {.x = -1.F, .y = +1.F, .z = -0.F, .u = 0.F, .v = 0.F},
-  });
+  std::vector<float> vertices{
+      +1.F, +1.F, 0.F,  // 3 ------ 0
+      +1.F, -1.F, 0.F,  // |        |
+      -1.F, -1.F, 0.F,  // |        |
+      -1.F, +1.F, 0.F,  // 2 ------ 1
+  };
+  std::vector<float> uv{
+      1.F, 0.F,  //
+      1.F, 1.F,  //
+      0.F, 1.F,  //
+      0.F, 0.F,  //
+  };
+  this->renderer_->register_buffer(0, 3, GL_FLOAT, vertices.data(),
+      sizeof(float) * vertices.size());  // NOLINT
+  this->renderer_->register_buffer(
+      1, 2, GL_FLOAT, uv.data(), sizeof(float) * uv.size());  // NOLINT
   this->renderer_->request_draw_arrays(GL_TRIANGLE_FAN, 0, 4);
+
   this->update_geom();
   if (this->texture_.has_data()) {
     this->renderer_->set_texture(

@@ -1,6 +1,7 @@
 #include "renderer.hpp"
 
 #include <GLES3/gl32.h>
+#include <sys/types.h>
 #include <zen-remote/server/gl-buffer.h>
 #include <zen-remote/server/gl-sampler.h>
 #include <zen-remote/server/gl-shader.h>
@@ -12,6 +13,20 @@
 #include "server.hpp"
 
 namespace yaza {
+Buffer::Buffer(int32_t size, uint32_t type, const void* data, ssize_t data_size)
+    : size_(size), type_(type) {
+  auto channel  = server::get().remote->channel_nonnull();
+  this->buffer_ = zen::remote::server::CreateGlBuffer(channel);
+  if (data) {
+    this->set_data(data, data_size);
+  }
+}
+void Buffer::set_data(const void* data, ssize_t data_size) {
+  this->data_.from_ptr(data, data_size);
+  this->buffer_->GlBufferData(
+      this->data_.create_buffer(), GL_ARRAY_BUFFER, data_size, GL_STATIC_DRAW);
+}
+
 Renderer::Renderer(const char* vert_shader, const char* frag_shader)
     : pos_(0.F), rot_() {
   auto channel          = server::get().remote->channel_nonnull();
@@ -24,16 +39,10 @@ Renderer::Renderer(const char* vert_shader, const char* frag_shader)
       channel, vert_shader, GL_VERTEX_SHADER);
   this->frag_shader_ = zen::remote::server::CreateGlShader(
       channel, frag_shader, GL_FRAGMENT_SHADER);
-  this->program_     = zen::remote::server::CreateGlProgram(channel);
-  this->vert_array_  = zen::remote::server::CreateGlVertexArray(channel);
-  this->vert_buffer_ = zen::remote::server::CreateGlBuffer(channel);
-  this->texture_     = zen::remote::server::CreateGlTexture(channel);
-  this->sampler_     = zen::remote::server::CreateGlSampler(channel);
-
-  // location = 0: position
-  this->vert_array_->GlEnableVertexAttribArray(0);
-  this->vert_array_->GlVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
-      sizeof(BufferElement), 0, this->vert_buffer_->id());
+  this->program_    = zen::remote::server::CreateGlProgram(channel);
+  this->vert_array_ = zen::remote::server::CreateGlVertexArray(channel);
+  this->texture_    = zen::remote::server::CreateGlTexture(channel);
+  this->sampler_    = zen::remote::server::CreateGlSampler(channel);
 
   this->program_->GlAttachShader(this->vert_shader_->id());
   this->program_->GlAttachShader(this->frag_shader_->id());
@@ -54,13 +63,17 @@ void Renderer::move_abs(glm::vec3& v) {
 void Renderer::set_rot(glm::quat& q) {
   this->rot_ = q;
 }
-void Renderer::set_vertex(const std::vector<BufferElement>& buffer) {
-  auto size = buffer.size() * sizeof(BufferElement);
-  this->vert_data_.from_ptr(buffer.data(), size);
-  this->vert_buffer_->GlBufferData(
-      this->vert_data_.create_buffer(), GL_ARRAY_BUFFER, size, GL_STATIC_DRAW);
-  this->vert_array_->GlVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
-      sizeof(BufferElement), 0, this->vert_buffer_->id());
+
+void Renderer::register_buffer(uint32_t index, int32_t size, uint32_t type,
+    const void* data, ssize_t data_size) {
+  auto [it, inserted] =
+      this->buffers_.try_emplace(index, size, type, data, data_size);
+  if (!inserted) {
+    return;
+  }
+  this->vert_array_->GlEnableVertexAttribArray(index);
+  this->vert_array_->GlVertexAttribPointer(
+      index, size, type, GL_FALSE, 0, 0, it->second.buffer_id());
 }
 void Renderer::set_texture(
     util::DataPool& texture, uint32_t width, uint32_t height) {
@@ -71,10 +84,6 @@ void Renderer::set_texture(
   this->sampler_->GlSamplerParameteri(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   this->technique_->BindTexture(
       0, "", this->texture_->id(), GL_TEXTURE_2D, this->sampler_->id());
-
-  this->vert_array_->GlEnableVertexAttribArray(1);
-  this->vert_array_->GlVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE,
-      sizeof(BufferElement), sizeof(float) * 3, this->vert_buffer_->id());
 }
 void Renderer::set_uniform_matrix(
     uint32_t location, const char* name, glm::mat4& mat) {
