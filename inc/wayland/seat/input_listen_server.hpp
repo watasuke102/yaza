@@ -24,7 +24,7 @@ struct Event {
   } data;
 };
 
-constexpr float kMouseMovementDivider = 100.F;
+constexpr float kMouseMovementDivider = 150.F;
 
 // owned by Seat
 class InputListenServer {
