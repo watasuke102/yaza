@@ -143,6 +143,12 @@ void Surface::set_texture_size(uint32_t width, uint32_t height) {
   }
 }
 
+void Surface::set_role(Role role) {
+  this->role_ = role;
+}
+void Surface::set_offset(glm::ivec2 offset) {
+  this->pending_.offset = offset;
+}
 void Surface::move(float polar, float azimuthal) {
   this->polar_ += polar;
   this->azimuthal_ += azimuthal;
@@ -152,19 +158,26 @@ void Surface::move(float polar, float azimuthal) {
     this->renderer_->commit();
   }
 }
-void Surface::move(glm::vec3 pos, glm::quat rot) {
-  this->geom_.pos() = pos;
-  this->geom_.rot() =
+void Surface::move(glm::vec3 pos, glm::quat rot, glm::ivec2 hotspot) {
+  // FIXME: offset isn't applied until the ray moves
+  glm::vec3 top_left(this->offset_ - hotspot, 0.F);
+  top_left.y *= -1;
+  this->geom_.pos() = pos - (top_left / kPixelPerMeter);
+  this->geom_.x() +=
+      static_cast<float>(this->tex_width_) / 2.F / kPixelPerMeter;
+  this->geom_.y() -=
+      static_cast<float>(this->tex_height_) / 2.F / kPixelPerMeter;
+
+  this->geom_.rot() =  // add rotation to let Surface look at the camera
       rot * glm::angleAxis(std::numbers::pi_v<float>, glm::vec3{0.F, 1.F, 0.F});
+
   if (this->renderer_) {
     this->sync_geom();
     this->renderer_->commit();
   }
 }
 
-void Surface::attach(wl_resource* buffer, int32_t /*sx*/, int32_t /*sy*/) {
-  // x, y is discarded but `Setting anything other than 0 as x and y arguments
-  // is discouraged`, so ignore them for now (TODO?)
+void Surface::attach(wl_resource* buffer) {
   if (buffer == nullptr) {
     this->pending_.buffer = std::nullopt;
   } else {
@@ -177,6 +190,9 @@ void Surface::set_callback(wl_resource* resource) {
 
 std::optional<SurfaceIntersectInfo> Surface::intersected_at(
     const glm::vec3& origin, const glm::vec3& direction) {
+  if (this->role_ == Role::CURSOR) {
+    return std::nullopt;
+  }
   glm::vec3 vert_left_bottom =
       this->geom_mat_ * glm::vec4(-1.F, -1.F, 0.F, 1.F);
   glm::vec3 vert_right_bottom =
@@ -196,6 +212,8 @@ void Surface::listen_committed(util::Listener<std::nullptr_t*>& listener) {
 }
 
 void Surface::commit() {
+  this->offset_ -= this->pending_.offset;
+
   if (this->pending_.buffer.has_value()) {
     if (this->texture_.has_data()) {
       this->texture_.reset();
@@ -235,10 +253,11 @@ void destroy(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
 }
 void attach(wl_client* /*client*/, wl_resource* resource,
-    wl_resource* buffer_resource, int32_t x, int32_t y) {
+    wl_resource* buffer_resource, int32_t dx, int32_t dy) {
   auto* surface =
       static_cast<util::UniPtr<Surface>*>(wl_resource_get_user_data(resource));
-  (*surface)->attach(buffer_resource, x, y);
+  (*surface)->attach(buffer_resource);
+  (*surface)->set_offset({dx, dy});
 }
 void damage(wl_client* /*client*/, wl_resource* /*resource*/, int32_t /*x*/,
     int32_t /*y*/, int32_t /*width*/, int32_t /*height*/) {
@@ -280,9 +299,11 @@ void damage_buffer(wl_client* /*client*/, wl_resource* /*resource*/,
     int32_t /*x*/, int32_t /*y*/, int32_t /*width*/, int32_t /*height*/) {
   // TODO
 }
-void offset(wl_client* /*client*/, wl_resource* /*resource*/, int32_t /*x*/,
-    int32_t /*y*/) {
-  // TODO
+void offset(
+    wl_client* /*client*/, wl_resource* resource, int32_t dx, int32_t dy) {
+  auto* surface =
+      static_cast<util::UniPtr<Surface>*>(wl_resource_get_user_data(resource));
+  (*surface)->set_offset({dx, dy});
 }
 constexpr struct wl_surface_interface kImpl = {
     .destroy              = destroy,

@@ -15,6 +15,7 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/quaternion_transform.hpp>
 #include <glm/ext/quaternion_trigonometric.hpp>
+#include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -79,8 +80,8 @@ Seat::Seat() {
 
 void Seat::set_surface_as_cursor(
     wl_resource* surface_resource, int32_t hotspot_x, int32_t hotspot_y) {
-  this->hotspot_x_ = hotspot_x;
-  this->hotspot_y_ = hotspot_y;
+  this->hotspot_.x = hotspot_x;
+  this->hotspot_.y = hotspot_y;
 
   if (this->cursor_.lock()) {
     if (this->cursor_->resource() == surface_resource) {
@@ -101,18 +102,19 @@ void Seat::set_surface_as_cursor(
     this->cursor_ = *it;
     surfaces.erase(it);
     assert(this->cursor_.lock() != nullptr);
+    this->cursor_->set_role(surface::Role::CURSOR);
     this->move_cursor();
   }
 }
 void Seat::move_cursor() {
-  // FIXME: temporal length (length of cursor pos vector should be shorter)
+  const auto r = this->cursor_distance_;  // shortening
   const auto pos =
       this->kOrigin +
-      glm::vec3{                                                    //
-          0.4 * sin(this->ray_.polar) * sin(this->ray_.azimuthal),  //
-          0.4 * cos(this->ray_.polar),                              //
-          0.4 * sin(this->ray_.polar) * cos(this->ray_.azimuthal)};
-  this->cursor_->move(pos, this->ray_.rot);
+      glm::vec3{                                                  //
+          r * sin(this->ray_.polar) * sin(this->ray_.azimuthal),  //
+          r * cos(this->ray_.polar),                              //
+          r * sin(this->ray_.polar) * cos(this->ray_.azimuthal)};
+  this->cursor_->move(pos, this->ray_.rot, this->hotspot_);
 }
 
 void Seat::mouse_button(wl_pointer_button_state state) {
@@ -162,9 +164,6 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
   if (this->ray_renderer_) {
     this->ray_renderer_->commit();
   }
-  if (this->cursor_.lock()) {
-    this->move_cursor();
-  }
 
   switch (this->surface_state_) {
     case FocusedSurfaceState::DEFAULT:
@@ -175,6 +174,10 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
         surface->move(diff_polar, azimuthal);
       }
       break;
+  }
+
+  if (this->cursor_.lock()) {
+    this->move_cursor();
   }
 }
 void Seat::check_surface_intersection() {
@@ -213,6 +216,8 @@ void Seat::check_surface_intersection() {
     this->set_focused_surface(nearest_surface, wl_pointer, x, y);
     wl_pointer_send_motion(wl_pointer, util::now_msec(), x, y);
     wl_pointer_send_frame(wl_pointer);
+    // show the cursor nearer to origin than any other surfaces
+    this->cursor_distance_ = nearest_surface_info->distance * 0.98F;
   } else {
     // there is no intersected surface
     this->try_leave_focused_surface();
@@ -277,10 +282,11 @@ void Seat::update_ray_rot() {
           glm::vec3{-1.F, 0.F, 0.F});
 
   if (this->ray_renderer_) {
-    glm::mat4 mat =
-        glm::translate(glm::mat4(1.F), this->kOrigin) *
-        glm::toMat4(this->ray_.rot) *
-        glm::scale(glm::mat4(1.F), glm::vec3{this->ray_.length, 1.F, 1.F});
+    auto      length = this->cursor_.lock() ? this->cursor_distance_ * 0.75 :
+                                              Seat::kDefaultRayLen;
+    glm::mat4 mat    = glm::translate(glm::mat4(1.F), this->kOrigin) *
+                    glm::toMat4(this->ray_.rot) *
+                    glm::scale(glm::mat4(1.F), glm::vec3{length, 1.F, 1.F});
     this->ray_renderer_->set_uniform_matrix(0, "local_model", mat);
   }
 }

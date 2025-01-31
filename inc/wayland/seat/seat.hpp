@@ -6,7 +6,9 @@
 #include <wayland-util.h>
 
 #include <glm/ext/matrix_float4x4.hpp>
+#include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_float3.hpp>
+#include <glm/ext/vector_int2.hpp>
 #include <memory>
 #include <numbers>
 #include <unordered_map>
@@ -50,18 +52,17 @@ class Seat {
   void try_leave_focused_surface();
 
   util::WeakPtr<surface::Surface> cursor_;
-  int32_t                         hotspot_x_;
-  int32_t                         hotspot_y_;
+  glm::ivec2                      hotspot_;
   void                            move_cursor();
+  float                           cursor_distance_ = Seat::kDefaultRayLen;
 
   // TODO: create class
   const glm::vec3        kBaseDirection = glm::vec3(0.F, 0.F, 1.F);
   const glm::vec3        kOrigin        = glm::vec3(0.F, 0.849F, -0.001F);
-  constexpr static float kDefaultLen    = 1.9F;
+  constexpr static float kDefaultRayLen = 1.4F;
   struct {
     float     polar     = std::numbers::pi / 2.F;  // [0, pi]
     float     azimuthal = std::numbers::pi;        // x-z plane, [0, 2pi]
-    float     length    = Seat::kDefaultLen;
     glm::quat rot;
   } ray_;
   std::unique_ptr<Renderer> ray_renderer_;
