@@ -49,7 +49,7 @@ InputListenServer::InputListenServer() {
   if (bind(this->socket_, (const sockaddr*)&addr, sizeof(addr)) == -1) {
     BAIL("Failed to bind a socket");
   }
-  if (listen(this->socket_, 0) == -1) {
+  if (listen(this->socket_, 2) == -1) {
     BAIL("Failed to listen a socket");
   }
 
