@@ -1,8 +1,10 @@
 
 #include <wayland-server-core.h>
+#include <wayland-server.h>
 #include <xdg-shell-protocol.h>
 
 #include "wayland/surface.hpp"
+#include "xdg_shell/xdg_positioner.hpp"
 #include "xdg_shell/xdg_surface.hpp"
 
 namespace yaza::xdg_shell::xdg_wm_base {
@@ -11,8 +13,8 @@ void destroy(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
 }
 void create_positioner(
-    wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*id*/) {
-  // TODO
+    wl_client* client, wl_resource* /*resource*/, uint32_t id) {
+  xdg_positioner::create(client, id);
 }
 void get_xdg_surface(wl_client* client, wl_resource* resource, uint32_t id,
     wl_resource* surface_resource) {

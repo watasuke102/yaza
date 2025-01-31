@@ -6,6 +6,7 @@
 
 #include "server.hpp"
 #include "util/weakable_unique_ptr.hpp"
+#include "xdg_shell/xdg_popup.hpp"
 #include "xdg_shell/xdg_toplevel.hpp"
 
 namespace yaza::xdg_shell::xdg_surface {
@@ -35,10 +36,9 @@ void destroy(wl_client* /* client */, wl_resource* resource) {
 void get_toplevel(wl_client* client, wl_resource* resource, uint32_t id) {
   xdg_toplevel::create(client, wl_resource_get_version(resource), id);
 }
-void get_popup(wl_client* /* client */, wl_resource* /* resource */,
-    uint32_t /* id */, wl_resource* /* parent */,
-    wl_resource* /* positioner */) {
-  // TODO
+void get_popup(wl_client* client, wl_resource* /* resource */, uint32_t id,
+    wl_resource* /* parent */, wl_resource* /* positioner */) {
+  xdg_popup::create(client, id);
 }
 void set_window_geometry(wl_client* /* client */, wl_resource* /* resource */,
     int32_t /* x */, int32_t /* y */, int32_t /* width */,
