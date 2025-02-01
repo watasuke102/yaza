@@ -129,7 +129,7 @@ void Surface::frame() {
 }
 std::optional<input::IntersectInfo> Surface::intersected_at(
     const glm::vec3& origin, const glm::vec3& direction) {
-  if (this->role_ == Role::CURSOR) {
+  if (!this->texture_.has_data() || this->role_ == Role::CURSOR) {
     return std::nullopt;
   }
   auto      geom_mat          = this->geom_.mat();
