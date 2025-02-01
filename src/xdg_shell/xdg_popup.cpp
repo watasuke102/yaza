@@ -1,11 +1,12 @@
 #include "xdg_shell/xdg_popup.hpp"
 
+#include <wayland-server-core.h>
 #include <xdg-shell-protocol.h>
 
 namespace yaza::xdg_shell::xdg_popup {
 namespace {
-void destroy(wl_client* /*client*/, wl_resource* /*resource*/) {
-  // TODO
+void destroy(wl_client* /*client*/, wl_resource* resource) {
+  wl_resource_destroy(resource);
 }
 void grab(wl_client* /*client*/, wl_resource* /*resource*/,
     wl_resource* /*seat*/, uint32_t /*serial*/) {
@@ -19,7 +20,7 @@ constexpr struct xdg_popup_interface kImpl = {
     .destroy    = destroy,
     .grab       = grab,
     .reposition = reposition,
-};  // namespace
+};
 }  // namespace
 
 void create(wl_client* client, uint32_t id) {
