@@ -8,10 +8,10 @@
 #include <csignal>
 
 #include "common.hpp"
+#include "input/bounded_object.hpp"
+#include "input/seat.hpp"
 #include "remote/remote.hpp"
 #include "util/weakable_unique_ptr.hpp"
-#include "input/seat.hpp"
-#include "wayland/surface.hpp"
 
 namespace yaza::server {
 // NOLINTBEGIN(cppcoreguidelines-non-private-member-variables-in-classes)
@@ -29,10 +29,10 @@ class Server {
   uint32_t       next_serial();
   wl_event_loop* loop();
 
-  remote::Remote*                                     remote;
-  input::Seat*                                        seat;
-  std::list<util::WeakPtr<wayland::surface::Surface>> surfaces;
-  void                                                remove_expired_surfaces();
+  remote::Remote*                                remote;
+  input::Seat*                                   seat;
+  std::list<util::WeakPtr<input::BoundedObject>> surfaces;
+  void                                           remove_expired_surfaces();
 
  private:
   Server()  = default;

@@ -4,7 +4,9 @@
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
 #include <wayland-server.h>
+#include <wayland-util.h>
 
+#include <cassert>
 #include <cstdint>
 #include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -17,9 +19,11 @@
 #include <optional>
 
 #include "common.hpp"
+#include "input/bounded_object.hpp"
 #include "remote/session.hpp"
 #include "renderer.hpp"
 #include "server.hpp"
+#include "util/box.hpp"
 #include "util/intersection.hpp"
 #include "util/time.hpp"
 #include "util/weakable_unique_ptr.hpp"
@@ -54,8 +58,8 @@ constexpr float kPixelPerMeter    = 9000.F;
 constexpr float kRadiusFromOrigin = 0.4F;
 }  // namespace
 Surface::Surface(wl_resource* resource)
-    : geom_(glm::vec3(0.F, 0.85F, 0.F), glm::quat(glm::vec3(0.F, 0.F, 0.F)),
-          glm::vec3{1.F, 1.F, 0.F})
+    : input::BoundedObject(util::Box(
+          glm::vec3(0.F, 0.85F, 0.F), glm::quat(), glm::vec3{1.F, 1.F, 0.F}))
     , resource_(resource) {
   if (server::get().remote->has_session()) {
     this->init_renderer();
@@ -79,6 +83,74 @@ Surface::Surface(wl_resource* resource)
 Surface::~Surface() {
   LOG_DEBUG(" destructor: wl_surface@%u", wl_resource_get_id(this->resource_));
 }
+
+void Surface::enter(input::IntersectInfo& intersect_info) {
+  if (auto* wl_pointer =
+          server::get().seat->pointer_resources[this->client()]) {
+    wl_pointer_send_enter(wl_pointer, server::get().next_serial(),
+        this->resource(), wl_fixed_from_double(intersect_info.pos.x),
+        wl_fixed_from_double(intersect_info.pos.y));
+  }
+}
+void Surface::leave() {
+  if (auto* wl_pointer =
+          server::get().seat->pointer_resources[this->client()]) {
+    wl_pointer_send_leave(
+        wl_pointer, server::get().next_serial(), this->resource());
+  }
+}
+void Surface::motion(input::IntersectInfo& intersect_info) {
+  if (auto* wl_pointer =
+          server::get().seat->pointer_resources[this->client()]) {
+    wl_pointer_send_motion(wl_pointer, util::now_msec(),
+        wl_fixed_from_double(intersect_info.pos.x),
+        wl_fixed_from_double(intersect_info.pos.y));
+  }
+}
+void Surface::button(uint32_t button, wl_pointer_button_state state) {
+  if (auto* wl_pointer =
+          server::get().seat->pointer_resources[this->client()]) {
+    wl_pointer_send_button(wl_pointer, server::get().next_serial(),
+        util::now_msec(), button, state);
+  }
+}
+void Surface::axis(float amount) {
+  if (auto* wl_pointer =
+          server::get().seat->pointer_resources[this->client()]) {
+    wl_pointer_send_axis(wl_pointer, util::now_msec(),
+        WL_POINTER_AXIS_VERTICAL_SCROLL, wl_fixed_from_double(amount));
+  }
+}
+void Surface::frame() {
+  if (auto* wl_pointer =
+          server::get().seat->pointer_resources[this->client()]) {
+    wl_pointer_send_frame(wl_pointer);
+  }
+}
+std::optional<input::IntersectInfo> Surface::intersected_at(
+    const glm::vec3& origin, const glm::vec3& direction) {
+  if (this->role_ == Role::CURSOR) {
+    return std::nullopt;
+  }
+  auto      geom_mat          = this->geom_.mat();
+  glm::vec3 vert_left_bottom  = geom_mat * glm::vec4(-1.F, -1.F, 0.F, 1.F);
+  glm::vec3 vert_right_bottom = geom_mat * glm::vec4(+1.F, -1.F, 0.F, 1.F);
+  glm::vec3 vert_left_top     = geom_mat * glm::vec4(-1.F, +1.F, 0.F, 1.F);
+  auto      result            = util::intersected_at(
+      origin, direction, vert_left_bottom, vert_right_bottom, vert_left_top);
+  if (!result.has_value()) {
+    return std::nullopt;
+  }
+  return input::IntersectInfo{
+      .distance = result->distance,
+      .pos{static_cast<float>(this->tex_width_) * result->u,
+           static_cast<float>(this->tex_height_) * (1.F - result->v), 0.F}
+  };
+}
+bool Surface::is_active() {
+  return server::get().seat->pointer_resources[this->client()] != nullptr;
+}
+
 void Surface::init_renderer() {
   this->renderer_ = std::make_unique<Renderer>(kVertShader, kFragShader);
   std::vector<float> vertices{
@@ -127,8 +199,7 @@ void Surface::update_pos_and_rot() {
   }
 }
 void Surface::sync_geom() {
-  glm::mat4 scale = glm::scale(glm::mat4(1.F), this->geom_.size());
-  this->geom_mat_ = this->geom_.mat() * scale;
+  auto scale = this->geom_.scale_mat();
   this->renderer_->set_uniform_matrix(0, "surface_scale", scale);
   this->renderer_->move_abs(this->geom_.pos());
   this->renderer_->set_rot(this->geom_.rot());
@@ -188,25 +259,6 @@ void Surface::set_callback(wl_resource* resource) {
   this->pending_.callback = resource;
 }
 
-std::optional<SurfaceIntersectInfo> Surface::intersected_at(
-    const glm::vec3& origin, const glm::vec3& direction) {
-  if (this->role_ == Role::CURSOR) {
-    return std::nullopt;
-  }
-  glm::vec3 vert_left_bottom =
-      this->geom_mat_ * glm::vec4(-1.F, -1.F, 0.F, 1.F);
-  glm::vec3 vert_right_bottom =
-      this->geom_mat_ * glm::vec4(+1.F, -1.F, 0.F, 1.F);
-  glm::vec3 vert_left_top = this->geom_mat_ * glm::vec4(-1.F, +1.F, 0.F, 1.F);
-  auto      result        = util::intersected_at(
-      origin, direction, vert_left_bottom, vert_right_bottom, vert_left_top);
-  if (!result.has_value()) {
-    return std::nullopt;
-  }
-  return SurfaceIntersectInfo{.distance = result->distance,
-      .sx = static_cast<float>(this->tex_width_) * result->u,
-      .sy = static_cast<float>(this->tex_height_) * (1.F - result->v)};
-}
 void Surface::listen_committed(util::Listener<std::nullptr_t*>& listener) {
   this->events_.committed.add_listener(listener);
 }
@@ -333,7 +385,9 @@ void create(wl_client* client, int version, uint32_t id) {
     wl_client_post_no_memory(client);
     return;
   }
-  auto* surface = new util::UniPtr<Surface>(surface_resource);
+  auto obj = std::dynamic_pointer_cast<input::BoundedObject>(
+      std::make_shared<Surface>(surface_resource));
+  auto* surface = new util::UniPtr<input::BoundedObject>(std::move(obj));
   wl_resource_set_implementation(surface_resource, &kImpl, surface, destroy);
   server::get().surfaces.emplace_back(surface->weak());
 }

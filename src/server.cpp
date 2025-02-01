@@ -8,10 +8,10 @@
 #include <cstdint>
 
 #include "common.hpp"
+#include "input/bounded_object.hpp"
+#include "input/seat.hpp"
 #include "remote/remote.hpp"
 #include "util/weakable_unique_ptr.hpp"
-#include "input/seat.hpp"
-#include "wayland/surface.hpp"
 #include "wayland/wayland.hpp"
 #include "xdg_shell/xdg_shell.hpp"
 #include "zwin/zwin.hpp"
@@ -119,9 +119,8 @@ wl_event_loop* Server::loop() {
 }
 
 void Server::remove_expired_surfaces() {
-  this->surfaces.remove_if(
-      [](const util::WeakPtr<wayland::surface::Surface>& s) {
-        return !s.lock();
-      });
+  this->surfaces.remove_if([](const util::WeakPtr<input::BoundedObject>& s) {
+    return !s.lock();
+  });
 }
 }  // namespace yaza::server

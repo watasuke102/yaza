@@ -9,10 +9,10 @@
 namespace yaza::util {
 class Box {
  public:
-  Box() : pos_(), rot_(), size_() {
+  Box() : pos_(), rot_(), scale_() {
   }
-  Box(glm::vec3 pos, glm::quat rot, glm::vec3 size)
-      : pos_(pos), rot_(rot), size_(size) {
+  Box(glm::vec3 pos, glm::quat rot, glm::vec3 scale)
+      : pos_(pos), rot_(rot), scale_(scale) {
   }
 
   glm::vec3& pos() {
@@ -39,26 +39,35 @@ class Box {
   float& rz() {
     return this->rot_.z;
   }
-  glm::vec3& size() {
-    return this->size_;
+  glm::vec3& scale() {
+    return this->scale_;
   }
   float& width() {
-    return this->size_.x;
+    return this->scale_.x;
   }
   float& height() {
-    return this->size_.y;
+    return this->scale_.y;
   }
   float& depth() {
-    return this->size_.z;
+    return this->scale_.z;
   }
 
   glm::mat4 mat() {
-    return glm::translate(glm::mat4(1.F), this->pos_) * glm::toMat4(this->rot_);
+    return this->translation_mat() * this->rotation_mat() * this->scale_mat();
+  }
+  glm::mat4 translation_mat() {
+    return glm::translate(glm::mat4(1.F), this->pos_);
+  }
+  glm::mat4 rotation_mat() {
+    return glm::toMat4(this->rot_);
+  }
+  glm::mat4 scale_mat() {
+    return glm::scale(glm::mat4(1.F), this->scale_);
   }
 
  private:
   glm::vec3 pos_;
   glm::quat rot_;
-  glm::vec3 size_;
+  glm::vec3 scale_;
 };
 }  // namespace yaza::util

@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cassert>
 #include <memory>
+#include <utility>
 
 namespace yaza::util {
 template <class T>
@@ -15,6 +17,9 @@ class UniPtr {
       : ptr_(std::make_shared<T>(std::forward<Args>(args)...)) {
   }
   explicit UniPtr(T&& t) : ptr_(std::make_shared(std::move(t))) {
+  }
+  explicit UniPtr(std::shared_ptr<T>&& p) : ptr_(std::move(p)) {
+    assert(this->ptr_.unique());
   }
   UniPtr(UniPtr&& other) noexcept            = default;
   UniPtr& operator=(UniPtr&& other) noexcept = default;

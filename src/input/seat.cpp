@@ -26,10 +26,10 @@
 #include <vector>
 
 #include "common.hpp"
+#include "input/bounded_object.hpp"
 #include "input/input_listen_server.hpp"
 #include "renderer.hpp"
 #include "server.hpp"
-#include "util/time.hpp"
 #include "util/weakable_unique_ptr.hpp"
 #include "wayland/surface.hpp"
 
@@ -93,7 +93,7 @@ void Seat::set_surface_as_cursor(
   server::get().remove_expired_surfaces();
   auto& surfaces = server::get().surfaces;
   auto  it       = std::find_if(surfaces.begin(), surfaces.end(),
-             [surface_resource](util::WeakPtr<wayland::surface::Surface>& s) {
+             [surface_resource](util::WeakPtr<input::BoundedObject>& s) {
         return s->resource() == surface_resource;
       });
 
@@ -101,7 +101,9 @@ void Seat::set_surface_as_cursor(
     this->cursor_ = *it;
     surfaces.erase(it);
     assert(this->cursor_.lock() != nullptr);
-    this->cursor_->set_role(wayland::surface::Role::CURSOR);
+    auto* cursor =
+        dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock());
+    cursor->set_role(wayland::surface::Role::CURSOR);
     this->move_cursor();
   }
 }
@@ -113,54 +115,45 @@ void Seat::move_cursor() {
           r * sin(this->ray_.polar) * sin(this->ray_.azimuthal),  //
           r * cos(this->ray_.polar),                              //
           r * sin(this->ray_.polar) * cos(this->ray_.azimuthal)};
-  this->cursor_->move(pos, this->ray_.rot, this->hotspot_);
+  auto* cursor = dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock());
+  cursor->move(pos, this->ray_.rot, this->hotspot_);
 }
 
 void Seat::handle_mouse_button(uint32_t button, wl_pointer_button_state state) {
-  if (this->surface_state_ == FocusedSurfaceState::MOVING &&
+  if (this->obj_state_ == FocusedObjState::MOVING &&
       state == WL_POINTER_BUTTON_STATE_RELEASED) {
-    this->surface_state_ = FocusedSurfaceState::DEFAULT;
-    this->focused_surface_.reset();
+    this->obj_state_ = FocusedObjState::DEFAULT;
+    this->focused_obj_.reset();
     check_surface_intersection();
     return;
   }
 
-  auto* surface = this->focused_surface_.lock();
-  if (!surface) {
-    return;
-  }
-  if (auto* wl_pointer = this->pointer_resources[surface->client()]) {
-    wl_pointer_send_button(wl_pointer, server::get().next_serial(),
-        util::now_msec(), button, state);
-    wl_pointer_send_frame(wl_pointer);
+  if (auto* obj = this->focused_obj_.lock()) {
+    obj->button(button, state);
+    obj->frame();
   }
 }
 void Seat::handle_mouse_wheel(float amount) {
-  auto* surface = this->focused_surface_.lock();
-  if (!surface) {
-    return;
-  }
-  if (auto* wl_pointer = this->pointer_resources[surface->client()]) {
-    wl_pointer_send_axis(wl_pointer, util::now_msec(),
-        WL_POINTER_AXIS_VERTICAL_SCROLL, wl_fixed_from_double(amount));
-    wl_pointer_send_frame(wl_pointer);
+  if (auto* obj = this->focused_obj_.lock()) {
+    obj->axis(amount);
+    obj->frame();
   }
 }
 
 void Seat::request_start_move(wl_client* client) {
-  auto* surface = this->focused_surface_.lock();
-  if (!surface) {
+  auto* obj = this->focused_obj_.lock();
+  if (!obj) {
     return;
   }
-  if (surface->client() != client) {
+  if (obj->client() != client) {
     return;
   }
-  if (auto* wl_pointer = this->pointer_resources[surface->client()]) {
+  if (auto* wl_pointer = this->pointer_resources[obj->client()]) {
     wl_pointer_send_leave(
-        wl_pointer, server::get().next_serial(), surface->resource());
+        wl_pointer, server::get().next_serial(), obj->resource());
     wl_pointer_send_frame(wl_pointer);
   }
-  this->surface_state_ = FocusedSurfaceState::MOVING;
+  this->obj_state_ = FocusedObjState::MOVING;
 }
 
 void Seat::move_rel_pointing(float polar, float azimuthal) {
@@ -175,12 +168,12 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
     this->ray_renderer_->commit();
   }
 
-  switch (this->surface_state_) {
-    case FocusedSurfaceState::DEFAULT:
+  switch (this->obj_state_) {
+    case FocusedObjState::DEFAULT:
       this->check_surface_intersection();
       break;
-    case FocusedSurfaceState::MOVING:
-      if (auto* surface = this->focused_surface_.lock()) {
+    case FocusedObjState::MOVING:
+      if (auto* surface = this->focused_obj_.lock()) {
         surface->move(diff_polar, azimuthal);
       }
       break;
@@ -193,10 +186,9 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
 void Seat::check_surface_intersection() {
   const auto direction = glm::rotate(this->ray_.rot, this->kBaseDirection);
 
-  util::WeakPtr<wayland::surface::Surface>              nearest_surface;
-  std::optional<wayland::surface::SurfaceIntersectInfo> nearest_surface_info =
-      std::nullopt;
-  auto& surfaces = server::get().surfaces;
+  util::WeakPtr<BoundedObject> nearest_obj;
+  std::optional<IntersectInfo> nearest_obj_info = std::nullopt;
+  auto&                        surfaces         = server::get().surfaces;
   for (auto it = surfaces.begin(); it != surfaces.end();) {
     if (auto* surface = it->lock()) {
       auto result = surface->intersected_at(this->kOrigin, direction);
@@ -204,10 +196,10 @@ void Seat::check_surface_intersection() {
         ++it;
         continue;
       }
-      if (!nearest_surface_info.has_value() ||
-          result->distance <= nearest_surface_info->distance) {
-        nearest_surface      = *it;
-        nearest_surface_info = result.value();
+      if (!nearest_obj_info.has_value() ||
+          result->distance <= nearest_obj_info->distance) {
+        nearest_obj      = *it;
+        nearest_obj_info = result.value();
       }
       ++it;
     } else {
@@ -215,45 +207,38 @@ void Seat::check_surface_intersection() {
     }
   }
 
-  if (nearest_surface_info.has_value()) {
-    wl_resource* wl_pointer =
-        this->pointer_resources[nearest_surface.lock()->client()];
-    if (!wl_pointer) {
-      return;
+  if (nearest_obj_info.has_value()) {
+    if (!nearest_obj->is_active()) {
+      return;  // FIXME: is this error handling correct?
     }
-    auto x = wl_fixed_from_double(nearest_surface_info->sx);
-    auto y = wl_fixed_from_double(nearest_surface_info->sy);
-    this->set_focused_surface(nearest_surface, wl_pointer, x, y);
-    wl_pointer_send_motion(wl_pointer, util::now_msec(), x, y);
-    wl_pointer_send_frame(wl_pointer);
-    // show the cursor nearer to origin than any other surfaces
-    this->cursor_distance_ = nearest_surface_info->distance * 0.98F;
+    bool focus_changed = this->set_focused_obj(nearest_obj);
+    if (focus_changed) {
+      this->focused_obj_->enter(nearest_obj_info.value());
+    }
+    this->focused_obj_->motion(nearest_obj_info.value());
+    this->focused_obj_->frame();
+    // show the cursor nearer to origin than hit position
+    this->cursor_distance_ = nearest_obj_info->distance * 0.98F;
   } else {
-    // there is no intersected surface
-    this->try_leave_focused_surface();
-    this->focused_surface_.reset();
+    // there is no intersected obj
+    if (auto* obj = this->focused_obj_.lock()) {
+      obj->leave();
+      obj->frame();
+    }
+    this->focused_obj_.reset();
   }
 }
 
-void Seat::set_focused_surface(util::WeakPtr<wayland::surface::Surface> surface,
-    wl_resource* wl_pointer, wl_fixed_t x, wl_fixed_t y) {
-  if (surface == this->focused_surface_) {
-    return;
+bool Seat::set_focused_obj(util::WeakPtr<input::BoundedObject> obj) {
+  if (obj == this->focused_obj_) {
+    return false;
   }
-  wl_pointer_send_enter(wl_pointer, server::get().next_serial(),
-      surface.lock()->resource(), x, y);
-  this->try_leave_focused_surface();
-  this->focused_surface_.swap(surface);
-}
-void Seat::try_leave_focused_surface() {
-  wayland::surface::Surface* surface = this->focused_surface_.lock();
-  if (!surface) {
-    return;
+  if (auto* obj = this->focused_obj_.lock()) {
+    obj->leave();
+    obj->frame();
   }
-  if (auto* wl_pointer = this->pointer_resources[surface->client()]) {
-    wl_pointer_send_leave(
-        wl_pointer, server::get().next_serial(), surface->resource());
-  }
+  this->focused_obj_.swap(obj);
+  return true;
 }
 
 /*

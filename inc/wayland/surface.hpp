@@ -13,9 +13,9 @@
 #include <optional>
 
 #include "common.hpp"
+#include "input/bounded_object.hpp"
 #include "remote/session.hpp"
 #include "renderer.hpp"
-#include "util/box.hpp"
 #include "util/data_pool.hpp"
 #include "util/signal.hpp"
 
@@ -27,16 +27,31 @@ enum class Role : uint8_t {
   CURSOR,
 };
 
-struct SurfaceIntersectInfo {
-  float distance;
-  float sx, sy;  // surface-local coordinate
-};
-
-class Surface {
+class Surface : public input::BoundedObject {
  public:
   DISABLE_MOVE_AND_COPY(Surface);
   explicit Surface(wl_resource* resource);
   ~Surface();
+
+  void enter(input::IntersectInfo& intersect_info) override;
+  void leave() override;
+  void motion(input::IntersectInfo& intersect_info) override;
+  void button(uint32_t button, wl_pointer_button_state state) override;
+  void axis(float amount) override;
+  void frame() override;
+  std::optional<input::IntersectInfo> intersected_at(
+      const glm::vec3& origin, const glm::vec3& direction) override;
+  void move(float polar, float azimuthal) override;  // for DEFAULT
+  [[nodiscard]] bool         is_active() override;
+  [[nodiscard]] wl_resource* resource() const override {
+    return this->resource_;
+  }
+  [[nodiscard]] wl_client* client() const override {
+    return wl_resource_get_client(this->resource_);
+  }
+  bool operator==(const BoundedObject& other) override {
+    return this->resource() == other.resource();
+  };
 
   void attach(wl_resource* buffer);
   void set_callback(wl_resource* resource);
@@ -44,21 +59,12 @@ class Surface {
 
   void set_role(Role role);
   void set_offset(glm::ivec2 offset);
-  void move(float polar, float azimuthal);                      // for DEFAULT
   void move(glm::vec3 pos, glm::quat rot, glm::ivec2 hotspot);  // for CURSOR
-  std::optional<SurfaceIntersectInfo> intersected_at(
-      const glm::vec3& origin, const glm::vec3& direction);
   void listen_committed(util::Listener<std::nullptr_t*>& listener);
 
   Role role() {
     return this->role_;
   };
-  wl_resource* resource() {
-    return this->resource_;
-  }
-  wl_client* client() {
-    return wl_resource_get_client(this->resource_);
-  }
 
  private:
   struct {
@@ -72,7 +78,8 @@ class Surface {
   } pending_;
   glm::ivec2 offset_ = glm::vec2(0);  // surface local
 
-  Role role_;
+  Role    role_ = Role::DEFAULT;
+  wl_list wl_pointer_list_;
 
   util::DataPool texture_;
   uint32_t       tex_width_;
@@ -81,16 +88,15 @@ class Surface {
 
   float                     polar_     = std::numbers::pi / 2.F;
   float                     azimuthal_ = std::numbers::pi;
-  util::Box                 geom_;
-  glm::mat4                 geom_mat_;  // use on checking for intersection
   void                      update_pos_and_rot();
   void                      sync_geom();
   std::unique_ptr<Renderer> renderer_;
   void                      init_renderer();
 
-  util::Listener<remote::Session*> session_established_listener_;
-  util::Listener<std::nullptr_t*>  session_disconnected_listener_;
-  wl_resource*                     resource_;
+  [[nodiscard]] std::optional<wl_resource*> get_wl_pointer() const;
+  util::Listener<remote::Session*>          session_established_listener_;
+  util::Listener<std::nullptr_t*>           session_disconnected_listener_;
+  wl_resource*                              resource_;
 };
 
 void create(wl_client* client, int version, uint32_t id);
