@@ -47,10 +47,12 @@ constexpr auto* kVertShader = GLSL(
 constexpr auto* kFragShader = GLSL(
   uniform sampler2D texture;
   in  vec2 uv;
-  out vec4 color;
+  out vec4 color_out;
 
   void main() {
-    color = texture(texture, uv);
+    vec4 color = texture(texture, uv);
+    if (color.a < 0.5) discard;
+    color_out = color;
   }
 );
 // clang-format on
