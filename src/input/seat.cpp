@@ -86,6 +86,11 @@ void Seat::set_surface_as_cursor(
     if (this->cursor_->resource() == surface_resource) {
       return;
     }
+    {
+      auto* cursor =
+          dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock());
+      cursor->set_active(false);
+    }
     server::get().surfaces.push_front(std::move(this->cursor_));
   }
   assert(this->cursor_.lock() == nullptr);
@@ -104,6 +109,7 @@ void Seat::set_surface_as_cursor(
     auto* cursor =
         dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock());
     cursor->set_role(wayland::surface::Role::CURSOR);
+    cursor->set_active(true);
     this->move_cursor();
   }
 }
@@ -145,14 +151,11 @@ void Seat::request_start_move(wl_client* client) {
   if (!obj) {
     return;
   }
-  if (obj->client() != client) {
+  if (obj->client() != client || !obj->is_active()) {
     return;
   }
-  if (auto* wl_pointer = this->pointer_resources[obj->client()]) {
-    wl_pointer_send_leave(
-        wl_pointer, server::get().next_serial(), obj->resource());
-    wl_pointer_send_frame(wl_pointer);
-  }
+  obj->leave();
+  obj->frame();
   this->obj_state_ = FocusedObjState::MOVING;
 }
 
@@ -226,6 +229,7 @@ void Seat::check_surface_intersection() {
       obj->frame();
     }
     this->focused_obj_.reset();
+    this->set_surface_as_cursor(nullptr, 0, 0);
   }
 }
 

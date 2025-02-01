@@ -59,6 +59,7 @@ class Surface : public input::BoundedObject {
 
   void set_role(Role role);
   void set_offset(glm::ivec2 offset);
+  void set_active(bool is_active);
   void move(glm::vec3 pos, glm::quat rot, glm::ivec2 hotspot);  // for CURSOR
   void listen_committed(util::Listener<std::nullptr_t*>& listener);
 
@@ -76,7 +77,8 @@ class Surface : public input::BoundedObject {
     std::optional<wl_resource*> callback = std::nullopt;
     glm::ivec2                  offset   = glm::vec2(0);  // surface local
   } pending_;
-  glm::ivec2 offset_ = glm::vec2(0);  // surface local
+  glm::ivec2 offset_    = glm::vec2(0);  // surface local
+  bool       is_active_ = true;          // only for CURSOR
 
   Role    role_ = Role::DEFAULT;
   wl_list wl_pointer_list_;

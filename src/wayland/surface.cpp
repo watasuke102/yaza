@@ -201,7 +201,7 @@ void Surface::update_pos_and_rot() {
   }
 }
 void Surface::sync_geom() {
-  auto scale = this->geom_.scale_mat();
+  auto scale = this->is_active_ ? this->geom_.scale_mat() : glm::mat4(0.F);
   this->renderer_->set_uniform_matrix(0, "surface_scale", scale);
   this->renderer_->move_abs(this->geom_.pos());
   this->renderer_->set_rot(this->geom_.rot());
@@ -221,6 +221,13 @@ void Surface::set_role(Role role) {
 }
 void Surface::set_offset(glm::ivec2 offset) {
   this->pending_.offset = offset;
+}
+void Surface::set_active(bool active) {
+  this->is_active_ = active;
+  if (this->renderer_) {
+    this->sync_geom();
+    this->renderer_->commit();
+  }
 }
 void Surface::move(float polar, float azimuthal) {
   this->polar_ += polar;
