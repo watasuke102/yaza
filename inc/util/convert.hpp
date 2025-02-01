@@ -5,13 +5,13 @@
 #include <cstring>
 
 namespace yaza::util {
-/// return false if succeeds
+/// return false if fails
 template <typename T>
 bool convert_wl_array(wl_array* array, T* dst) {
   if (array->size != sizeof(T)) {
-    return true;
+    return false;
   }
   std::memcpy(dst, array->data, array->size);
-  return false;
+  return true;
 }
 }  // namespace yaza::util
