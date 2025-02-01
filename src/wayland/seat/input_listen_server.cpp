@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
 #include <fcntl.h>
+#include <linux/input-event-codes.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <sys/epoll.h>
@@ -140,10 +141,19 @@ void InputListenServer::handle_events(int client) const {
             -event->data.movement[0] / kMouseMovementDivider);
         break;
       case EventType::MOUSE_DOWN:
-        server::get().seat->mouse_button(WL_POINTER_BUTTON_STATE_PRESSED);
+        if (event->data.button == BTN_LEFT || event->data.button == BTN_RIGHT) {
+          server::get().seat->handle_mouse_button(
+              event->data.button, WL_POINTER_BUTTON_STATE_PRESSED);
+        }
         break;
       case EventType::MOUSE_UP:
-        server::get().seat->mouse_button(WL_POINTER_BUTTON_STATE_RELEASED);
+        if (event->data.button == BTN_LEFT || event->data.button == BTN_RIGHT) {
+          server::get().seat->handle_mouse_button(
+              event->data.button, WL_POINTER_BUTTON_STATE_RELEASED);
+        }
+        break;
+      case EventType::MOUSE_WHEEL:
+        server::get().seat->handle_mouse_wheel(event->data.wheel_amount);
         break;
       default:
         LOG_WARN("Unknown event type: %u", static_cast<uint32_t>(event->type));

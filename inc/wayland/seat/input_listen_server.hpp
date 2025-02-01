@@ -13,6 +13,7 @@ enum class EventType : uint32_t {  // NOLINT
   MOUSE_MOVE = 1,
   MOUSE_DOWN,
   MOUSE_UP,
+  MOUSE_WHEEL,
 };
 
 struct Event {
@@ -21,10 +22,12 @@ struct Event {
   union {
     float    movement[2];  // MOUSE_MOVE
     uint32_t button;       // MOUSE_{DOWN, UP} (reserved)
+    float    wheel_amount;
   } data;
 };
 
-constexpr float kMouseMovementDivider = 150.F;
+constexpr float kMouseMovementDivider = 1500.F;
+constexpr float kMouseWheelDivider    = 100'000.F;
 
 // owned by Seat
 class InputListenServer {

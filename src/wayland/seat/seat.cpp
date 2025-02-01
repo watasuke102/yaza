@@ -117,7 +117,7 @@ void Seat::move_cursor() {
   this->cursor_->move(pos, this->ray_.rot, this->hotspot_);
 }
 
-void Seat::mouse_button(wl_pointer_button_state state) {
+void Seat::handle_mouse_button(uint32_t button, wl_pointer_button_state state) {
   if (this->surface_state_ == FocusedSurfaceState::MOVING &&
       state == WL_POINTER_BUTTON_STATE_RELEASED) {
     this->surface_state_ = FocusedSurfaceState::DEFAULT;
@@ -132,7 +132,18 @@ void Seat::mouse_button(wl_pointer_button_state state) {
   }
   if (auto* wl_pointer = this->pointer_resources[surface->client()]) {
     wl_pointer_send_button(wl_pointer, server::get().next_serial(),
-        util::now_msec(), BTN_LEFT, state);
+        util::now_msec(), button, state);
+    wl_pointer_send_frame(wl_pointer);
+  }
+}
+void Seat::handle_mouse_wheel(float amount) {
+  auto* surface = this->focused_surface_.lock();
+  if (!surface) {
+    return;
+  }
+  if (auto* wl_pointer = this->pointer_resources[surface->client()]) {
+    wl_pointer_send_axis(wl_pointer, util::now_msec(),
+        WL_POINTER_AXIS_VERTICAL_SCROLL, wl_fixed_from_double(amount));
     wl_pointer_send_frame(wl_pointer);
   }
 }

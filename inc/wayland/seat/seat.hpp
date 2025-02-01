@@ -38,7 +38,8 @@ class Seat {
   void set_surface_as_cursor(
       wl_resource* surface_resource, int32_t hotspot_x, int32_t hotspot_y);
 
-  void mouse_button(wl_pointer_button_state state);
+  void handle_mouse_button(uint32_t button, wl_pointer_button_state state);
+  void handle_mouse_wheel(float amount);
   void request_start_move(wl_client* client);
   void move_rel_pointing(float polar, float azimuthal);
 
