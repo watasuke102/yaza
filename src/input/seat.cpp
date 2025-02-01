@@ -1,4 +1,4 @@
-#include "wayland/seat/seat.hpp"
+#include "input/seat.hpp"
 
 #include <GLES3/gl32.h>
 #include <linux/input-event-codes.h>
@@ -26,15 +26,14 @@
 #include <vector>
 
 #include "common.hpp"
+#include "input/input_listen_server.hpp"
 #include "renderer.hpp"
 #include "server.hpp"
 #include "util/time.hpp"
 #include "util/weakable_unique_ptr.hpp"
-#include "wayland/seat/input_listen_server.hpp"
-#include "wayland/seat/pointer.hpp"
 #include "wayland/surface.hpp"
 
-namespace yaza::wayland::seat {
+namespace yaza::input {
 namespace {
 // clang-format off
 constexpr auto* kVertShader = GLSL(
@@ -94,7 +93,7 @@ void Seat::set_surface_as_cursor(
   server::get().remove_expired_surfaces();
   auto& surfaces = server::get().surfaces;
   auto  it       = std::find_if(surfaces.begin(), surfaces.end(),
-             [surface_resource](util::WeakPtr<surface::Surface>& s) {
+             [surface_resource](util::WeakPtr<wayland::surface::Surface>& s) {
         return s->resource() == surface_resource;
       });
 
@@ -102,7 +101,7 @@ void Seat::set_surface_as_cursor(
     this->cursor_ = *it;
     surfaces.erase(it);
     assert(this->cursor_.lock() != nullptr);
-    this->cursor_->set_role(surface::Role::CURSOR);
+    this->cursor_->set_role(wayland::surface::Role::CURSOR);
     this->move_cursor();
   }
 }
@@ -194,8 +193,8 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
 void Seat::check_surface_intersection() {
   const auto direction = glm::rotate(this->ray_.rot, this->kBaseDirection);
 
-  util::WeakPtr<surface::Surface>              nearest_surface;
-  std::optional<surface::SurfaceIntersectInfo> nearest_surface_info =
+  util::WeakPtr<wayland::surface::Surface>              nearest_surface;
+  std::optional<wayland::surface::SurfaceIntersectInfo> nearest_surface_info =
       std::nullopt;
   auto& surfaces = server::get().surfaces;
   for (auto it = surfaces.begin(); it != surfaces.end();) {
@@ -236,7 +235,7 @@ void Seat::check_surface_intersection() {
   }
 }
 
-void Seat::set_focused_surface(util::WeakPtr<surface::Surface> surface,
+void Seat::set_focused_surface(util::WeakPtr<wayland::surface::Surface> surface,
     wl_resource* wl_pointer, wl_fixed_t x, wl_fixed_t y) {
   if (surface == this->focused_surface_) {
     return;
@@ -301,40 +300,4 @@ void Seat::update_ray_rot() {
     this->ray_renderer_->set_uniform_matrix(0, "local_model", mat);
   }
 }
-
-namespace {
-void get_pointer(wl_client* client, wl_resource* /*resource*/, uint32_t id) {
-  pointer::create(client, id);
-}
-void get_keyboard(
-    wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*id*/) {
-  LOG_WARN("get_keyboard");
-  // TODO
-}
-void get_touch(wl_client* client, wl_resource* /*resource*/, uint32_t /*id*/) {
-  wl_client_post_implementation_error(
-      client, "touch device is not implemented");
-}
-void release(wl_client* /*client*/, wl_resource* resource) {
-  wl_resource_destroy(resource);
-}
-constexpr struct wl_seat_interface kImpl = {
-    .get_pointer  = get_pointer,
-    .get_keyboard = get_keyboard,
-    .get_touch    = get_touch,
-    .release      = release,
-};
-}  // namespace
-
-void bind(wl_client* client, void* /*data*/, uint32_t version, uint32_t id) {
-  wl_resource* resource = wl_resource_create(
-      client, &wl_seat_interface, static_cast<int>(version), id);
-  if (resource == nullptr) {
-    wl_client_post_no_memory(client);
-    return;
-  }
-  wl_resource_set_implementation(resource, &kImpl, nullptr, nullptr);
-  wl_seat_send_capabilities(
-      resource, WL_SEAT_CAPABILITY_POINTER | WL_SEAT_CAPABILITY_KEYBOARD);
-}
-}  // namespace yaza::wayland::seat
+}  // namespace yaza::input

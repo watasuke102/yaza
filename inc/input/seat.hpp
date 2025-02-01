@@ -14,14 +14,14 @@
 #include <unordered_map>
 
 #include "common.hpp"
+#include "input/input_listen_server.hpp"
 #include "remote/session.hpp"
 #include "renderer.hpp"
 #include "util/signal.hpp"
 #include "util/weakable_unique_ptr.hpp"
-#include "wayland/seat/input_listen_server.hpp"
 #include "wayland/surface.hpp"
 
-namespace yaza::wayland::seat {
+namespace yaza::input {
 enum class FocusedSurfaceState : uint8_t {
   DEFAULT,
   MOVING,
@@ -46,16 +46,16 @@ class Seat {
  private:
   void check_surface_intersection();
 
-  FocusedSurfaceState             surface_state_ = FocusedSurfaceState::DEFAULT;
-  util::WeakPtr<surface::Surface> focused_surface_;
-  void set_focused_surface(util::WeakPtr<surface::Surface> surface,
+  FocusedSurfaceState surface_state_ = FocusedSurfaceState::DEFAULT;
+  util::WeakPtr<wayland::surface::Surface> focused_surface_;
+  void set_focused_surface(util::WeakPtr<wayland::surface::Surface> surface,
       wl_resource* wl_pointer, wl_fixed_t x, wl_fixed_t y);
   void try_leave_focused_surface();
 
-  util::WeakPtr<surface::Surface> cursor_;
-  glm::ivec2                      hotspot_;
-  void                            move_cursor();
-  float                           cursor_distance_ = Seat::kDefaultRayLen;
+  util::WeakPtr<wayland::surface::Surface> cursor_;
+  glm::ivec2                               hotspot_;
+  void                                     move_cursor();
+  float cursor_distance_ = Seat::kDefaultRayLen;
 
   // TODO: create class
   const glm::vec3        kBaseDirection = glm::vec3(0.F, 0.F, 1.F);
@@ -76,5 +76,4 @@ class Seat {
   util::Listener<std::nullptr_t*>  session_disconnected_listener_;
 };
 
-void bind(wl_client* client, void* data, uint32_t version, uint32_t id);
-}  // namespace yaza::wayland::seat
+}  // namespace yaza::input

@@ -5,7 +5,7 @@
 #include "common.hpp"
 #include "wayland/compositor.hpp"
 #include "wayland/output.hpp"
-#include "wayland/seat/seat.hpp"
+#include "wayland/seat.hpp"
 
 namespace yaza::wayland {
 bool init(wl_display* display) {

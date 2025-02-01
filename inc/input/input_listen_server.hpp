@@ -5,7 +5,7 @@
 
 #include "common.hpp"
 
-namespace yaza::wayland::seat {
+namespace yaza::input {
 class Seat;
 constexpr uint16_t kServerPort = 22202;
 
@@ -43,4 +43,4 @@ class InputListenServer {
   int         socket_              = -1;
   bool        terminate_requested_ = false;
 };
-}  // namespace yaza::wayland::seat
+}  // namespace yaza::input

@@ -1,5 +1,5 @@
 // NOLINTBEGIN(google-readability-casting)
-#include "wayland/seat/input_listen_server.hpp"
+#include "input/input_listen_server.hpp"
 
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
@@ -23,7 +23,7 @@
 #include "common.hpp"
 #include "server.hpp"
 
-namespace yaza::wayland::seat {
+namespace yaza::input {
 InputListenServer::InputListenServer() {
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define BAIL(err_prefix)                                                       \
@@ -161,6 +161,6 @@ void InputListenServer::handle_events(int client) const {
     }
   }
 }
-}  // namespace yaza::wayland::seat
+}  // namespace yaza::input
 
 // NOLINTEND(google-readability-casting)

@@ -1,4 +1,4 @@
-#include "wayland/seat/pointer.hpp"
+#include "wayland/pointer.hpp"
 
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
@@ -7,7 +7,7 @@
 #include "common.hpp"
 #include "server.hpp"
 
-namespace yaza::wayland::seat::pointer {
+namespace yaza::wayland::pointer {
 namespace {
 void set_cursor(wl_client* /*client*/, wl_resource* /*resource*/,
     uint32_t /*serial*/, wl_resource* surface_resource, int32_t hotspot_x,
@@ -36,4 +36,4 @@ void create(wl_client* client, uint32_t id) {
   server::get().seat->pointer_resources[client] = resource;
   LOG_DEBUG("created: wl_pointer@%d for client %p", id, (void*)client);
 }
-}  // namespace yaza::wayland::seat::pointer
+}  // namespace yaza::wayland::pointer

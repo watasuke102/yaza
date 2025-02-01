@@ -2,6 +2,6 @@
 
 #include <wayland-server-core.h>
 
-namespace yaza::wayland::seat::pointer {
+namespace yaza::wayland::pointer {
 void create(wl_client* client, uint32_t id);
 }

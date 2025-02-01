@@ -10,7 +10,7 @@
 #include "common.hpp"
 #include "remote/remote.hpp"
 #include "util/weakable_unique_ptr.hpp"
-#include "wayland/seat/seat.hpp"
+#include "input/seat.hpp"
 #include "wayland/surface.hpp"
 
 namespace yaza::server {
@@ -30,7 +30,7 @@ class Server {
   wl_event_loop* loop();
 
   remote::Remote*                                     remote;
-  wayland::seat::Seat*                                seat;
+  input::Seat*                                        seat;
   std::list<util::WeakPtr<wayland::surface::Surface>> surfaces;
   void                                                remove_expired_surfaces();
 
