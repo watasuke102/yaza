@@ -53,7 +53,6 @@ void RenderingUnit::commit() {
 }
 
 void RenderingUnit::sync(bool force_sync) {
-  LOG_DEBUG("sync: RenderingUnit");
   if (!this->proxy_.has_value()) {
     this->proxy_ = zen::remote::server::CreateRenderingUnit(
         server::get().remote->channel_nonnull(), this->owner_->remote_id());

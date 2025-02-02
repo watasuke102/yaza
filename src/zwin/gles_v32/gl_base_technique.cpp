@@ -84,7 +84,6 @@ void GlBaseTechnique::commit() {
 }
 
 void GlBaseTechnique::sync(bool force_sync) {
-  LOG_DEBUG("sync: GlBaseTechnique");
   if (!this->proxy_.has_value()) {
     this->proxy_ = zen::remote::server::CreateGlBaseTechnique(
         server::get().remote->channel_nonnull(), this->owner_->remote_id());

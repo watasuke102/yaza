@@ -86,8 +86,6 @@ void VirtualObject::sync(bool force_sync) {
     LOG_WARN("VirtualObject is syncing but app is not attached");
     return;
   }
-  LOG_DEBUG(
-      "sync: VirtualObject (force_sync=%s)", force_sync ? "true" : "false");
   if (!this->proxy_.has_value()) {
     this->proxy_ = zen::remote::server::CreateVirtualObject(
         server::get().remote->channel_nonnull());
