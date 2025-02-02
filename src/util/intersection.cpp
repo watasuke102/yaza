@@ -6,9 +6,9 @@
 #include <glm/gtx/vector_query.hpp>
 #include <optional>
 
-namespace yaza::util {
+namespace yaza::util::intersection {
 // using Möller–Trumbore intersection algorithm
-std::optional<IntersectInfo> intersected_at(const glm::vec3& o,
+std::optional<SurfaceInfo> with_surface(const glm::vec3& o,
     const glm::vec3& dir, const glm::vec3& v0, const glm::vec3& v1,
     const glm::vec3& v2) {
   const glm::vec3 d   = glm::normalize(dir);
@@ -36,6 +36,6 @@ std::optional<IntersectInfo> intersected_at(const glm::vec3& o,
   if (v < 0 || v > 1) {
     return std::nullopt;
   }
-  return IntersectInfo{.distance = t, .u = u, .v = v};
+  return SurfaceInfo{.distance = t, .u = u, .v = v};
 }
-}  // namespace yaza::util
+}  // namespace yaza::util::intersection

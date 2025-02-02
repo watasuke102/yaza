@@ -138,7 +138,7 @@ std::optional<input::IntersectInfo> Surface::intersected_at(
   glm::vec3 vert_left_bottom  = geom_mat * glm::vec4(-1.F, -1.F, 0.F, 1.F);
   glm::vec3 vert_right_bottom = geom_mat * glm::vec4(+1.F, -1.F, 0.F, 1.F);
   glm::vec3 vert_left_top     = geom_mat * glm::vec4(-1.F, +1.F, 0.F, 1.F);
-  auto      result            = util::intersected_at(
+  auto      result            = util::intersection::with_surface(
       origin, direction, vert_left_bottom, vert_right_bottom, vert_left_top);
   if (!result.has_value()) {
     return std::nullopt;
