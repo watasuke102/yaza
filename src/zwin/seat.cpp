@@ -5,7 +5,6 @@
 
 #include <cstdint>
 
-#include "common.hpp"
 #include "zwin/ray.hpp"
 
 namespace yaza::zwin::seat {
@@ -14,7 +13,6 @@ void get_ray(wl_client* client, wl_resource* /*resource*/, uint32_t id) {
   ray::create(client, id);
 }
 void release(wl_client* /*client*/, wl_resource* resource) {
-  LOG_DEBUG("release: zwn_seat@%d", wl_resource_get_id(resource));
   wl_resource_destroy(resource);
 }
 constexpr struct zwn_seat_interface kImpl = {

@@ -77,8 +77,7 @@ class Surface : public input::BoundedObject {
   glm::ivec2 offset_    = glm::vec2(0);  // surface local
   bool       is_active_ = true;          // only for CURSOR
 
-  Role    role_ = Role::DEFAULT;
-  wl_list wl_pointer_list_;
+  Role role_ = Role::DEFAULT;
 
   util::DataPool texture_;
   uint32_t       tex_width_;
