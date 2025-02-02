@@ -77,6 +77,13 @@ Seat::Seat() {
   this->input_listen_server_ = std::make_unique<InputListenServer>();
 }
 
+bool Seat::is_focused_client(wl_client* client) {
+  if (auto* focused_obj = this->focused_obj_.lock()) {
+    return client == focused_obj->client();
+  }
+  return false;
+}
+
 RayGeometry Seat::ray_geometry() {
   return {.origin = this->kOrigin,
       .direction  = glm::rotate(this->ray_.rot, this->kBaseDirection)};
