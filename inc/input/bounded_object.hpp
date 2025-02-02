@@ -23,8 +23,10 @@ class BoundedObject {
   BoundedObject& operator=(const BoundedObject&) = default;
   BoundedObject& operator=(BoundedObject&&)      = default;
   virtual ~BoundedObject()                       = default;
-  virtual bool operator==(const BoundedObject&)  = 0;
-  bool         operator!=(const BoundedObject& other) {
+  bool operator==(const BoundedObject& other) const {
+    return this->resource() == other.resource();
+  }
+  bool operator!=(const BoundedObject& other) const {
     return !(*this == other);
   }
 

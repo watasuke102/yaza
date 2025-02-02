@@ -49,9 +49,6 @@ class Surface : public input::BoundedObject {
   [[nodiscard]] wl_client* client() const override {
     return wl_resource_get_client(this->resource_);
   }
-  bool operator==(const BoundedObject& other) override {
-    return this->resource() == other.resource();
-  };
 
   void attach(wl_resource* buffer);
   void set_callback(wl_resource* resource);
