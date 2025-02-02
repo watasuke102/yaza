@@ -4,14 +4,14 @@
 
 #include <cstring>
 
-namespace yaza::util {
+namespace yaza::util::convert {
 /// return false if fails
 template <typename T>
-bool convert_wl_array(wl_array* array, T* dst) {
+bool from_wl_array(wl_array* array, T* dst) {
   if (array->size != sizeof(T)) {
     return false;
   }
   std::memcpy(dst, array->data, array->size);
   return true;
 }
-}  // namespace yaza::util
+}  // namespace yaza::util::convert

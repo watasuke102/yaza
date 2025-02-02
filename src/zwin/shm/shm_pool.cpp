@@ -49,8 +49,8 @@ void create_buffer(wl_client* client, wl_resource* resource, uint32_t id,
 
   off_t offset = 0;
   off_t size   = 0;
-  if (!util::convert_wl_array(offset_array, &offset) ||
-      !util::convert_wl_array(size_array, &size)) {
+  if (!util::convert::from_wl_array(offset_array, &offset) ||
+      !util::convert::from_wl_array(size_array, &size)) {
     wl_resource_post_error(
         resource, ZWN_SHM_ERROR_INVALID_SIZE, "requested size is invalid");
   }

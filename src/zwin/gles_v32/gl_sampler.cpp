@@ -174,7 +174,7 @@ void destroy(wl_client* /*client*/, wl_resource* resource) {
 void parameter_f(wl_client* /*client*/, wl_resource* resource, uint32_t pname,
     wl_array* param_array) {
   float param = 0.F;
-  if (!util::convert_wl_array(param_array, &param)) {
+  if (!util::convert::from_wl_array(param_array, &param)) {
     wl_resource_post_error(resource, ZWN_COMPOSITOR_ERROR_WL_ARRAY_SIZE,
         "paramater size (%ld) does not equal float size (%ld)",
         param_array->size, sizeof(float));
