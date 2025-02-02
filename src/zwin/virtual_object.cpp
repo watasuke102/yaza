@@ -89,10 +89,10 @@ void VirtualObject::sync(bool force_sync) {
   if (!this->proxy_.has_value()) {
     this->proxy_ = zen::remote::server::CreateVirtualObject(
         server::get().remote->channel_nonnull());
-    auto geom = (*this->app_)->get()->geometry();
-    this->proxy_->get()->Move(
-        glm::value_ptr(geom.pos()), glm::value_ptr(geom.rot()));
   }
+  auto geom = (*this->app_)->get()->geometry();
+  this->proxy_->get()->Move(
+      glm::value_ptr(geom.pos()), glm::value_ptr(geom.rot()));
   for (auto* unit : this->rendering_unit_list_) {
     unit->sync(force_sync);
   }

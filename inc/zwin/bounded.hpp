@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <functional>
 #include <list>
+#include <numbers>
 #include <unordered_map>
 
 #include "common.hpp"
@@ -55,6 +56,10 @@ class BoundedApp : public input::BoundedObject {
 
   zwin::virtual_object::VirtualObject* virtual_object_;
   util::Listener<std::nullptr_t*>      virtual_object_committed_listener_;
+
+  float polar_     = std::numbers::pi / 2.F;
+  float azimuthal_ = std::numbers::pi;
+  void  update_pos_and_rot();
 
   std::unordered_map<uint32_t /* serial */, glm::vec3 /* half_size */>
                configure_list_;

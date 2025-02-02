@@ -181,8 +181,8 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
       this->check_intersection();
       break;
     case FocusedObjState::MOVING:
-      if (auto* surface = this->focused_obj_.lock()) {
-        surface->move(diff_polar, azimuthal);
+      if (auto* obj = this->focused_obj_.lock()) {
+        obj->move(diff_polar, azimuthal);
       }
       break;
   }

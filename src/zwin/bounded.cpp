@@ -24,12 +24,17 @@
 #include "util/weakable_unique_ptr.hpp"
 
 namespace yaza::zwin::bounded {
+namespace {
+constexpr float kRadiusFromOrigin = 2.2F;
+constexpr float kOffsetY          = 1.F;
+}  // namespace
 BoundedApp::BoundedApp(
     wl_resource* resource, zwin::virtual_object::VirtualObject* virtual_object)
-    : input::BoundedObject(util::Box(
-          glm::vec3(0.F, 1.F, -2.5F), glm::quat(), glm::vec3{0.F, 0.F, 0.F}))
+    : input::BoundedObject(
+          util::Box(glm::vec3(), glm::quat(), glm::vec3{0.F, 0.F, 0.F}))
     , virtual_object_(virtual_object)
     , resource_(resource) {
+  this->update_pos_and_rot();
   this->virtual_object_committed_listener_.set_handler(
       [this](std::nullptr_t* /**/) {
         this->commit();
@@ -155,9 +160,7 @@ std::optional<input::IntersectInfo> BoundedApp::check_intersection(
       .pos      = glm::vec3(),
   };
 }
-void BoundedApp::move(float /*polar*/, float /*azimuthal*/) {
-  // TODO
-}
+
 bool BoundedApp::is_active() {
   return server::get().seat->ray_resources.count(this->client()) > 0;
 }
@@ -199,6 +202,25 @@ void BoundedApp::commit() {
   this->current_.regions   = this->pending_.regions;
 }
 
+void BoundedApp::update_pos_and_rot() {
+  this->geom_.x() =
+      kRadiusFromOrigin * sin(this->polar_) * sin(this->azimuthal_);
+  this->geom_.y() = kOffsetY + kRadiusFromOrigin * cos(this->polar_);
+  this->geom_.z() =
+      kRadiusFromOrigin * sin(this->polar_) * cos(this->azimuthal_);
+
+  this->geom_.rot() =
+      glm::angleAxis(this->azimuthal_, glm::vec3{0.F, 1.F, 0.F}) *
+      glm::angleAxis(this->polar_ - (std::numbers::pi_v<float> / 2.F),
+          glm::vec3{1.F, 0.F, 0.F});
+}
+void BoundedApp::move(float polar, float azimuthal) {
+  this->polar_ += polar;
+  this->azimuthal_ += azimuthal;
+  this->update_pos_and_rot();
+  this->virtual_object_->commit();
+}
+
 namespace {
 void destroy(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
@@ -221,9 +243,9 @@ void set_region(wl_client* /*client*/, wl_resource* resource,
       wl_resource_get_user_data(region_resource));
   (*self)->set_region(region);
 }
-void move(wl_client* /*client*/, wl_resource* /*resource*/,
-    wl_resource* /*seat*/, uint32_t /*serial*/) {
-  // TODO
+void move(wl_client* client, wl_resource* /*resource*/, wl_resource* /*seat*/,
+    uint32_t /*serial*/) {
+  server::get().seat->request_start_move(client);
 }
 constexpr struct zwn_bounded_interface kImpl = {
     .destroy       = destroy,

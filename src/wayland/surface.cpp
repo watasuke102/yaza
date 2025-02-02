@@ -58,6 +58,7 @@ constexpr auto* kFragShader = GLSL(
 // clang-format on
 constexpr float kPixelPerMeter    = 9000.F;
 constexpr float kRadiusFromOrigin = 0.4F;
+constexpr float kOffsetY          = 0.85F;
 }  // namespace
 Surface::Surface(wl_resource* resource)
     : input::BoundedObject(util::Box(
@@ -184,7 +185,7 @@ void Surface::init_renderer() {
 void Surface::update_pos_and_rot() {
   this->geom_.x() =
       kRadiusFromOrigin * sin(this->polar_) * sin(this->azimuthal_);
-  this->geom_.y() = 0.85F + kRadiusFromOrigin * cos(this->polar_);
+  this->geom_.y() = kOffsetY + kRadiusFromOrigin * cos(this->polar_);
   this->geom_.z() =
       kRadiusFromOrigin * sin(this->polar_) * cos(this->azimuthal_);
 
