@@ -27,6 +27,11 @@ enum class FocusedObjState : uint8_t {
   MOVING,
 };
 
+struct RayGeometry {
+  glm::vec3 origin;
+  glm::vec3 direction;
+};
+
 class Seat {
  public:
   DISABLE_MOVE_AND_COPY(Seat);
@@ -35,9 +40,11 @@ class Seat {
 
   // FIXME: wl_client and wl_pointer is not 1:1?
   std::unordered_map<wl_client*, wl_resource* /*wl_pointer*/> pointer_resources;
+  std::unordered_multimap<wl_client*, wl_resource* /*zwn_ray*/> ray_resources;
 
-  void set_surface_as_cursor(
-      wl_resource* surface_resource, int32_t hotspot_x, int32_t hotspot_y);
+  RayGeometry ray_geometry();
+  void        set_surface_as_cursor(
+             wl_resource* surface_resource, int32_t hotspot_x, int32_t hotspot_y);
 
   void handle_mouse_button(uint32_t button, wl_pointer_button_state state);
   void handle_mouse_wheel(float amount);
@@ -45,7 +52,7 @@ class Seat {
   void move_rel_pointing(float polar, float azimuthal);
 
  private:
-  void check_surface_intersection();
+  void check_intersection();
 
   FocusedObjState                     obj_state_ = FocusedObjState::DEFAULT;
   util::WeakPtr<input::BoundedObject> focused_obj_;
@@ -60,7 +67,7 @@ class Seat {
   // TODO: create class
   const glm::vec3        kBaseDirection = glm::vec3(0.F, 0.F, 1.F);
   const glm::vec3        kOrigin        = glm::vec3(0.F, 0.849F, -0.001F);
-  constexpr static float kDefaultRayLen = 1.4F;
+  constexpr static float kDefaultRayLen = 3.4F;
   struct {
     float     polar     = std::numbers::pi / 2.F;  // [0, pi]
     float     azimuthal = std::numbers::pi;        // x-z plane, [0, 2pi]

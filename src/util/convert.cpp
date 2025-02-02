@@ -1,5 +1,8 @@
 #include "util/convert.hpp"
 
+#include <glm/ext/vector_float3.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 namespace yaza::util::convert {
 template <>
 bool from_wl_array(wl_array* array, off_t* dst) {

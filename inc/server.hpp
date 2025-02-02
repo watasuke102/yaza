@@ -11,7 +11,6 @@
 #include "input/bounded_object.hpp"
 #include "input/seat.hpp"
 #include "remote/remote.hpp"
-#include "util/weakable_unique_ptr.hpp"
 
 namespace yaza::server {
 // NOLINTBEGIN(cppcoreguidelines-non-private-member-variables-in-classes)
@@ -33,6 +32,8 @@ class Server {
   input::Seat*                                   seat;
   std::list<util::WeakPtr<input::BoundedObject>> surfaces;
   void                                           remove_expired_surfaces();
+
+  std::list<util::WeakPtr<input::BoundedObject>> bounded_apps;
 
  private:
   Server()  = default;

@@ -77,6 +77,11 @@ Seat::Seat() {
   this->input_listen_server_ = std::make_unique<InputListenServer>();
 }
 
+RayGeometry Seat::ray_geometry() {
+  return {.origin = this->kOrigin,
+      .direction  = glm::rotate(this->ray_.rot, this->kBaseDirection)};
+}
+
 void Seat::set_surface_as_cursor(
     wl_resource* surface_resource, int32_t hotspot_x, int32_t hotspot_y) {
   this->hotspot_.x = hotspot_x;
@@ -130,7 +135,7 @@ void Seat::handle_mouse_button(uint32_t button, wl_pointer_button_state state) {
       state == WL_POINTER_BUTTON_STATE_RELEASED) {
     this->obj_state_ = FocusedObjState::DEFAULT;
     this->focused_obj_.reset();
-    check_surface_intersection();
+    check_intersection();
     return;
   }
 
@@ -173,7 +178,7 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
 
   switch (this->obj_state_) {
     case FocusedObjState::DEFAULT:
-      this->check_surface_intersection();
+      this->check_intersection();
       break;
     case FocusedObjState::MOVING:
       if (auto* surface = this->focused_obj_.lock()) {
@@ -186,32 +191,38 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
     this->move_cursor();
   }
 }
-void Seat::check_surface_intersection() {
-  const auto direction = glm::rotate(this->ray_.rot, this->kBaseDirection);
-
+void Seat::check_intersection() {
   util::WeakPtr<BoundedObject> nearest_obj;
   std::optional<IntersectInfo> nearest_obj_info = std::nullopt;
-  auto&                        surfaces         = server::get().surfaces;
-  for (auto it = surfaces.begin(); it != surfaces.end();) {
-    if (auto* surface = it->lock()) {
-      auto result = surface->intersected_at(this->kOrigin, direction);
-      if (!result.has_value()) {
-        ++it;
-        continue;
-      }
-      if (!nearest_obj_info.has_value() ||
-          result->distance <= nearest_obj_info->distance) {
-        nearest_obj      = *it;
-        nearest_obj_info = result.value();
-      }
-      ++it;
-    } else {
-      it = surfaces.erase(it);
-    }
-  }
+
+  auto check =
+      [this, direction = glm::rotate(this->ray_.rot, this->kBaseDirection),
+          &nearest_obj, &nearest_obj_info](auto&& objs) {
+        for (auto it = objs.begin(); it != objs.end();) {
+          if (auto* surface = it->lock()) {
+            auto result = surface->check_intersection(this->kOrigin, direction);
+            if (!result.has_value()) {
+              ++it;
+              continue;
+            }
+            if (!nearest_obj_info.has_value() ||
+                result->distance <= nearest_obj_info->distance) {
+              nearest_obj      = *it;
+              nearest_obj_info = result.value();
+            }
+            ++it;
+          } else {
+            it = objs.erase(it);
+          }
+        }
+      };
+  check(server::get().surfaces);
+  check(server::get().bounded_apps);
 
   if (nearest_obj_info.has_value()) {
     if (!nearest_obj->is_active()) {
+      LOG_WARN("intersected obj is inactive (distance: %f)",
+          nearest_obj_info->distance);
       return;  // FIXME: is this error handling correct?
     }
     bool focus_changed = this->set_focused_obj(nearest_obj);
@@ -281,11 +292,11 @@ void Seat::update_ray_rot() {
           glm::vec3{-1.F, 0.F, 0.F});
 
   if (this->ray_renderer_) {
-    auto      length = this->cursor_.lock() ? this->cursor_distance_ * 0.75 :
+    auto      length = this->cursor_.lock() ? this->cursor_distance_ * 0.9F :
                                               Seat::kDefaultRayLen;
     glm::mat4 mat    = glm::translate(glm::mat4(1.F), this->kOrigin) *
                     glm::toMat4(this->ray_.rot) *
-                    glm::scale(glm::mat4(1.F), glm::vec3{length, 1.F, 1.F});
+                    glm::scale(glm::mat4(1.F), glm::vec3(length));
     this->ray_renderer_->set_uniform_matrix(0, "local_model", mat);
   }
 }

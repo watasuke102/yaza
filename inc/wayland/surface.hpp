@@ -39,7 +39,7 @@ class Surface : public input::BoundedObject {
   void button(uint32_t button, wl_pointer_button_state state) override;
   void axis(float amount) override;
   void frame() override;
-  std::optional<input::IntersectInfo> intersected_at(
+  std::optional<input::IntersectInfo> check_intersection(
       const glm::vec3& origin, const glm::vec3& direction) override;
   void move(float polar, float azimuthal) override;  // for DEFAULT
   [[nodiscard]] bool         is_active() override;

@@ -5,11 +5,12 @@
 
 #include <cstdint>
 
+#include "zwin/ray.hpp"
+
 namespace yaza::zwin::seat {
 namespace {
-void get_ray(
-    wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*id*/) {
-  // TODO
+void get_ray(wl_client* client, wl_resource* /*resource*/, uint32_t id) {
+  ray::create(client, id);
 }
 void release(wl_client* /*client*/, wl_resource* /*resource*/) {
   // TODO
@@ -28,5 +29,6 @@ void bind(wl_client* client, void* /*data*/, uint32_t version, uint32_t id) {
     return;
   }
   wl_resource_set_implementation(resource, &kImpl, nullptr, nullptr);
+  zwn_seat_send_capabilities(resource, ZWN_SEAT_CAPABILITY_RAY_DIRECTION);
 }
 }  // namespace yaza::zwin::seat

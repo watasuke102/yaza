@@ -37,7 +37,10 @@ class BoundedObject {
   virtual void axis(float amount)                                     = 0;
   virtual void frame()                                                = 0;
 
-  virtual std::optional<IntersectInfo> intersected_at(
+  const util::Box& geometry() {
+    return this->geom_;
+  }
+  virtual std::optional<IntersectInfo> check_intersection(
       const glm::vec3& origin, const glm::vec3& direction)              = 0;
   virtual void                       move(float polar, float azimuthal) = 0;
   [[nodiscard]] virtual bool         is_active()                        = 0;

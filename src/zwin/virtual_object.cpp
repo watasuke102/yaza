@@ -19,7 +19,7 @@
 #include "util/time.hpp"
 
 namespace yaza::zwin::virtual_object {
-VirtualObject::VirtualObject() {
+VirtualObject::VirtualObject(wl_resource* resource) : resource_(resource) {
   this->session_established_listener_.set_handler(
       [this](remote::Session* /*data*/) {
         if (this->committed_) {
@@ -61,6 +61,9 @@ VirtualObject::~VirtualObject() {
   for (auto* unit : this->rendering_unit_list_) {
     delete unit;
   }
+  if (this->app_.has_value()) {
+    delete this->app_.value();
+  }
 }
 
 void VirtualObject::commit() {
@@ -79,14 +82,18 @@ void VirtualObject::commit() {
 // so that callee will not use `channel_nonnull()`
 /// The top level of call tree that sync data by zen-remote
 void VirtualObject::sync(bool force_sync) {
+  if (!this->app_) {
+    LOG_WARN("VirtualObject is syncing but app is not attached");
+    return;
+  }
   LOG_DEBUG(
       "sync: VirtualObject (force_sync=%s)", force_sync ? "true" : "false");
   if (!this->proxy_.has_value()) {
     this->proxy_ = zen::remote::server::CreateVirtualObject(
         server::get().remote->channel_nonnull());
-    auto v = glm::vec3{0.F, 1.F, -3.F};
-    auto q = glm::quat();
-    this->proxy_->get()->Move(glm::value_ptr(v), glm::value_ptr(q));
+    auto geom = (*this->app_)->get()->geometry();
+    this->proxy_->get()->Move(
+        glm::value_ptr(geom.pos()), glm::value_ptr(geom.rot()));
   }
   for (auto* unit : this->rendering_unit_list_) {
     unit->sync(force_sync);
@@ -94,6 +101,10 @@ void VirtualObject::sync(bool force_sync) {
   this->proxy_->get()->Commit();
 }
 
+void VirtualObject::set_app(
+    std::optional<util::UniPtr<input::BoundedObject>*> app) {
+  this->app_ = app;
+}
 void VirtualObject::add_rendering_unit(
     gles_v32::rendering_unit::RenderingUnit* unit) {
   this->rendering_unit_list_.emplace_back(unit);
@@ -157,7 +168,7 @@ void create(wl_client* client, uint32_t id) {
     wl_client_post_no_memory(client);
     return;
   }
-  auto* self = new VirtualObject();
+  auto* self = new VirtualObject(resource);
   wl_resource_set_implementation(resource, &kImpl, self, destroy);
 }
 }  // namespace yaza::zwin::virtual_object

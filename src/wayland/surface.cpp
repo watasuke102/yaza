@@ -129,7 +129,7 @@ void Surface::frame() {
     wl_pointer_send_frame(wl_pointer);
   }
 }
-std::optional<input::IntersectInfo> Surface::intersected_at(
+std::optional<input::IntersectInfo> Surface::check_intersection(
     const glm::vec3& origin, const glm::vec3& direction) {
   if (!this->texture_.has_data() || this->role_ == Role::CURSOR) {
     return std::nullopt;

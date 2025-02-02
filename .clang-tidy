@@ -26,6 +26,7 @@ Checks: >
   -google-readability-todo,
   -modernize-use-ranges,
   -modernize-use-trailing-return-type,
+  -readability-container-contains,
   -readability-identifier-length,
   -readability-implicit-bool-conversion,
   -readability-magic-numbers,
