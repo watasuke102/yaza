@@ -33,6 +33,7 @@
 #include "util/weakable_unique_ptr.hpp"
 #include "wayland/data_device/data_device.hpp"
 #include "wayland/surface.hpp"
+#include "zwin/bounded.hpp"
 
 namespace yaza::input {
 namespace {
@@ -303,6 +304,15 @@ bool Seat::set_focused_obj(util::WeakPtr<input::BoundedObject> obj) {
   if (auto* obj = this->focused_obj_.lock()) {
     obj->leave();
     obj->frame();
+  }
+  if (auto* p = dynamic_cast<zwin::bounded::BoundedApp*>(obj.lock())) {
+    auto index = this->data_device_resources.bucket(obj->client());
+    LOG_INFO("Focus on BoundedApp! -> %lu", index);
+    std::for_each(this->data_device_resources.begin(index),
+        this->data_device_resources.end(index),
+        [](std::pair<wl_client*, wayland::data_device::DataDevice*> e) {
+          e.second->send_selection();
+        });
   }
   this->focused_obj_.swap(obj);
   return true;

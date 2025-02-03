@@ -7,7 +7,6 @@
 #include <functional>
 #include <string>
 
-#include "common.hpp"
 #include "server.hpp"
 #include "wayland/data_device/data_device.hpp"
 #include "wayland/data_device/data_source.hpp"
