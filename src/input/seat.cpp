@@ -88,6 +88,26 @@ RayGeometry Seat::ray_geometry() {
   return {.origin = this->kOrigin,
       .direction  = glm::rotate(this->ray_.rot, this->kBaseDirection)};
 }
+void Seat::set_keyboard_focused_surface(
+    util::WeakPtr<input::BoundedObject> obj) {
+  this->try_leave_keyboard();
+  this->keyboard_focused_surface_ = std::move(obj);
+}
+void Seat::try_leave_keyboard() {
+  auto* surface = dynamic_cast<wayland::surface::Surface*>(
+      this->keyboard_focused_surface_.lock());
+  if (!surface) {
+    return;
+  }
+  auto& keyboards = server::get().seat->keyboard_resources;
+  auto  index     = keyboards.bucket(surface->client());
+  auto  serial    = server::get().next_serial();
+  std::for_each(keyboards.begin(index), keyboards.end(index),
+      [surface, serial](std::pair<wl_client*, wl_resource*> e) {
+        wl_keyboard_send_leave(e.second, serial, surface->resource());
+      });
+  this->keyboard_focused_surface_.reset();
+}
 
 void Seat::set_surface_as_cursor(
     wl_resource* surface_resource, int32_t hotspot_x, int32_t hotspot_y) {
@@ -149,6 +169,8 @@ void Seat::handle_mouse_button(uint32_t button, wl_pointer_button_state state) {
   if (auto* obj = this->focused_obj_.lock()) {
     obj->button(button, state);
     obj->frame();
+  } else if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
+    this->try_leave_keyboard();
   }
 }
 void Seat::handle_mouse_wheel(float amount) {

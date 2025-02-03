@@ -21,7 +21,7 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/string_cast.hpp>
 
-#include "common.hpp"
+#include "wayland/keyboard.hpp"
 #include "wayland/pointer.hpp"
 
 namespace yaza::wayland::seat {
@@ -29,10 +29,8 @@ namespace {
 void get_pointer(wl_client* client, wl_resource* /*resource*/, uint32_t id) {
   pointer::create(client, id);
 }
-void get_keyboard(
-    wl_client* /*client*/, wl_resource* /*resource*/, uint32_t /*id*/) {
-  LOG_WARN("get_keyboard");
-  // TODO
+void get_keyboard(wl_client* client, wl_resource* /*resource*/, uint32_t id) {
+  keyboard::create(client, id);
 }
 void get_touch(wl_client* client, wl_resource* /*resource*/, uint32_t /*id*/) {
   wl_client_post_implementation_error(

@@ -45,6 +45,8 @@ class Seat {
   std::unordered_multimap<wl_client*, wl_resource* /*zwn_ray*/> ray_resources;
   std::unordered_multimap<wl_client*, wl_resource* /*wl_data_device*/>
       data_device_resources;
+  std::unordered_multimap<wl_client*, wl_resource* /*wl_keyboard*/>
+      keyboard_resources;
 
   bool is_focused_client(wl_client* client);
   void set_selection_source(wayland::data_source::DataSrc* source);
@@ -56,6 +58,7 @@ class Seat {
   RayGeometry ray_geometry();
   void        set_surface_as_cursor(
              wl_resource* surface_resource, int32_t hotspot_x, int32_t hotspot_y);
+  void set_keyboard_focused_surface(util::WeakPtr<input::BoundedObject> obj);
 
   void handle_mouse_button(uint32_t button, wl_pointer_button_state state);
   void handle_mouse_wheel(float amount);
@@ -70,6 +73,8 @@ class Seat {
   /// return true if `focused_obj_` is changed
   bool set_focused_obj(util::WeakPtr<input::BoundedObject> obj);
 
+  util::WeakPtr<input::BoundedObject> keyboard_focused_surface_;
+  void                                try_leave_keyboard();
   util::WeakPtr<input::BoundedObject> cursor_;
   glm::ivec2                          hotspot_;
   void                                move_cursor();
