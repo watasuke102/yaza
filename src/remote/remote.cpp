@@ -96,7 +96,7 @@ Remote::Remote(wl_event_loop* loop)
       [](void* data) {
         auto* self = static_cast<Remote*>(data);
 
-        if (self->has_session() &&
+        if (!self->has_session() ||
             self->channel_nonnull()->GetBusyness() < kBusynessThreshold) {
           self->events_.session_frame.emit(nullptr);
         }

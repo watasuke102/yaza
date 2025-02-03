@@ -51,7 +51,7 @@ class Surface : public input::BoundedObject {
   }
 
   void attach(wl_resource* buffer);
-  void set_callback(wl_resource* resource);
+  void queue_frame_callback(wl_resource* resource) const;
   void commit();
 
   void set_role(Role role);
@@ -70,10 +70,13 @@ class Surface : public input::BoundedObject {
   } events_;
 
   struct {
-    std::optional<wl_resource*> buffer   = std::nullopt;
-    std::optional<wl_resource*> callback = std::nullopt;
-    glm::ivec2                  offset   = glm::vec2(0);  // surface local
+    std::optional<wl_resource*> buffer = std::nullopt;
+    wl_list                     frame_callback_list;
+    glm::ivec2                  offset = glm::vec2(0);  // surface local
   } pending_;
+  struct {
+    wl_list frame_callback_list;
+  } current_;
   glm::ivec2 offset_    = glm::vec2(0);  // surface local
   bool       is_active_ = true;          // only for CURSOR
 
@@ -94,6 +97,7 @@ class Surface : public input::BoundedObject {
   [[nodiscard]] std::optional<wl_resource*> get_wl_pointer() const;
   util::Listener<remote::Session*>          session_established_listener_;
   util::Listener<std::nullptr_t*>           session_disconnected_listener_;
+  util::Listener<std::nullptr_t*>           session_frame_listener_;
   wl_resource*                              resource_;
 };
 

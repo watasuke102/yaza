@@ -81,9 +81,25 @@ Surface::Surface(wl_resource* resource)
   server::get().remote->listen_session_disconnected(
       this->session_disconnected_listener_);
 
+  wl_list_init(&this->pending_.frame_callback_list);
+  wl_list_init(&this->current_.frame_callback_list);
+  this->session_frame_listener_.set_handler([this](std::nullptr_t* /*data*/) {
+    auto         now_msec = util::now_msec();
+    wl_resource* callback = nullptr;
+    wl_resource* tmp      = nullptr;
+    wl_resource_for_each_safe(
+        callback, tmp, &this->current_.frame_callback_list) {
+      wl_callback_send_done(callback, now_msec);
+      wl_resource_destroy(callback);
+    }
+  });
+  server::get().remote->listen_session_frame(this->session_frame_listener_);
+
   LOG_DEBUG("constructor: wl_surface@%u", wl_resource_get_id(this->resource_));
 }
 Surface::~Surface() {
+  wl_list_remove(&this->pending_.frame_callback_list);
+  wl_list_remove(&this->current_.frame_callback_list);
   LOG_DEBUG(" destructor: wl_surface@%u", wl_resource_get_id(this->resource_));
 }
 
@@ -275,8 +291,9 @@ void Surface::attach(wl_resource* buffer) {
     this->pending_.buffer = buffer;
   }
 }
-void Surface::set_callback(wl_resource* resource) {
-  this->pending_.callback = resource;
+void Surface::queue_frame_callback(wl_resource* callback_resource) const {
+  wl_list_insert(this->pending_.frame_callback_list.prev,
+      wl_resource_get_link(callback_resource));
 }
 
 void Surface::listen_committed(util::Listener<std::nullptr_t*>& listener) {
@@ -304,18 +321,15 @@ void Surface::commit() {
     this->pending_.buffer = std::nullopt;
   }
 
-  if (this->pending_.callback.has_value()) {
-    auto* callback = this->pending_.callback.value();
-    wl_callback_send_done(callback, util::now_msec());
-    wl_resource_destroy(callback);
-    this->pending_.callback = std::nullopt;
-  }
-
   if (this->renderer_ != nullptr && this->texture_.has_data()) {
     this->renderer_->set_texture(
         this->texture_, this->tex_width_, this->tex_height_);
     this->renderer_->commit();
   }
+
+  wl_list_insert_list(
+      &this->current_.frame_callback_list, &this->pending_.frame_callback_list);
+  wl_list_init(&this->pending_.frame_callback_list);
 
   this->events_.committed.emit(nullptr);
 }
@@ -338,13 +352,18 @@ void damage(wl_client* /*client*/, wl_resource* /*resource*/, int32_t /*x*/,
 void frame(wl_client* client, wl_resource* resource, uint32_t callback) {
   wl_resource* callback_resource =
       wl_resource_create(client, &wl_callback_interface, 1, callback);
-  if (callback_resource) {
-    auto* self = static_cast<util::UniPtr<Surface>*>(
-        wl_resource_get_user_data(resource));
-    (*self)->set_callback(callback_resource);
-  } else {
-    wl_client_post_no_memory(client);
+  if (!callback_resource) {
+    wl_resource_post_no_memory(resource);
+    return;
   }
+  wl_resource_set_implementation(
+      callback_resource, nullptr, nullptr, [](wl_resource* resource) {
+        wl_list_remove(wl_resource_get_link(resource));
+      });
+
+  auto* self =
+      static_cast<util::UniPtr<Surface>*>(wl_resource_get_user_data(resource));
+  (*self)->queue_frame_callback(callback_resource);
 }
 void set_opaque_region(wl_client* /*client*/, wl_resource* /*resource*/,
     wl_resource* /*region_resource*/) {
