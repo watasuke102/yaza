@@ -117,16 +117,6 @@ void Surface::button(uint32_t button, wl_pointer_button_state state) {
         util::now_msec(), button, state);
   }
   if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
-    auto&    keyboards = server::get().seat->keyboard_resources;
-    auto     index     = keyboards.bucket(this->client());
-    auto     serial    = server::get().next_serial();
-    wl_array keys;
-    wl_array_init(&keys);
-    std::for_each(keyboards.begin(index), keyboards.end(index),
-        [this, serial, &keys](std::pair<wl_client*, wl_resource*> e) {
-          wl_keyboard_send_enter(e.second, serial, this->resource(), &keys);
-        });
-    wl_array_release(&keys);
     auto& surfaces = server::get().surfaces;
     auto  it       = std::find_if(surfaces.begin(), surfaces.end(),
                [this](util::WeakPtr<input::BoundedObject>& s) {

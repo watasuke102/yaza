@@ -4,7 +4,6 @@
 
 #include "server.hpp"
 #include "wayland/data_device/data_device.hpp"
-#include "wayland/data_device/data_offer.hpp"
 #include "wayland/data_device/data_source.hpp"
 
 namespace yaza::wayland::data_device_manager {
@@ -16,17 +15,8 @@ void create_data_source(
 void get_data_device(wl_client* client, wl_resource* /*resource*/, uint32_t id,
     wl_resource* /*seat*/) {
   auto* device = data_device::create(client, id);
-  if (!device || !server::get().seat->is_focused_client(client)) {
-    return;
-  }
-  auto* selection_src = server::get().seat->selection.source;
-  if (selection_src == nullptr) {
-    wl_data_device_send_selection(device, nullptr);
-    return;
-  }
-  auto* offer = data_offer::create(client, selection_src);
-  if (offer != nullptr) {
-    wl_data_device_send_selection(device, offer);
+  if (device && server::get().seat->is_focused_client(client)) {
+    device->send_selection();
   }
 }
 constexpr struct wl_data_device_manager_interface kImpl = {

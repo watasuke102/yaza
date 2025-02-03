@@ -21,7 +21,7 @@
 #include "renderer.hpp"
 #include "util/signal.hpp"
 #include "util/weakable_unique_ptr.hpp"
-#include "wayland/data_device/data_source.hpp"
+#include "wayland/data_device/data_device.hpp"
 
 namespace yaza::input {
 enum class FocusedObjState : uint8_t {
@@ -43,17 +43,14 @@ class Seat {
   // FIXME: wl_client and wl_pointer is not 1:1?
   std::unordered_map<wl_client*, wl_resource* /*wl_pointer*/> pointer_resources;
   std::unordered_multimap<wl_client*, wl_resource* /*zwn_ray*/> ray_resources;
-  std::unordered_multimap<wl_client*, wl_resource* /*wl_data_device*/>
-      data_device_resources;
   std::unordered_multimap<wl_client*, wl_resource* /*wl_keyboard*/>
       keyboard_resources;
+  std::unordered_multimap<wl_client*,
+      wayland::data_device::DataDevice* /*wl_data_device*/>
+      data_device_resources;
 
-  bool is_focused_client(wl_client* client);
-  void set_selection_source(wayland::data_source::DataSrc* source);
-  struct {
-    wayland::data_source::DataSrc* source = nullptr;
-    uint32_t                       serial;
-  } selection;
+  bool                              is_focused_client(wl_client* client);
+  wayland::data_device::DataDevice* current_selection = nullptr;
 
   RayGeometry ray_geometry();
   void        set_surface_as_cursor(
@@ -75,6 +72,7 @@ class Seat {
 
   util::WeakPtr<input::BoundedObject> keyboard_focused_surface_;
   void                                try_leave_keyboard();
+
   util::WeakPtr<input::BoundedObject> cursor_;
   glm::ivec2                          hotspot_;
   void                                move_cursor();

@@ -31,6 +31,7 @@
 #include "renderer.hpp"
 #include "server.hpp"
 #include "util/weakable_unique_ptr.hpp"
+#include "wayland/data_device/data_device.hpp"
 #include "wayland/surface.hpp"
 
 namespace yaza::input {
@@ -78,7 +79,7 @@ Seat::Seat() {
 }
 
 bool Seat::is_focused_client(wl_client* client) {
-  if (auto* focused_obj = this->focused_obj_.lock()) {
+  if (auto* focused_obj = this->keyboard_focused_surface_.lock()) {
     return client == focused_obj->client();
   }
   return false;
@@ -90,7 +91,29 @@ RayGeometry Seat::ray_geometry() {
 }
 void Seat::set_keyboard_focused_surface(
     util::WeakPtr<input::BoundedObject> obj) {
+  if (obj == this->keyboard_focused_surface_) {
+    return;
+  }
   this->try_leave_keyboard();
+
+  auto     index  = this->keyboard_resources.bucket(obj->client());
+  auto     serial = server::get().next_serial();
+  wl_array keys;
+  wl_array_init(&keys);
+  std::for_each(this->keyboard_resources.begin(index),
+      this->keyboard_resources.end(index),
+      [serial, &obj, &keys](std::pair<wl_client*, wl_resource*> e) {
+        wl_keyboard_send_enter(e.second, serial, obj->resource(), &keys);
+      });
+  wl_array_release(&keys);
+
+  index = this->data_device_resources.bucket(obj->client());
+  std::for_each(this->data_device_resources.begin(index),
+      this->data_device_resources.end(index),
+      [](std::pair<wl_client*, wayland::data_device::DataDevice*> e) {
+        e.second->send_selection();
+      });
+
   this->keyboard_focused_surface_ = std::move(obj);
 }
 void Seat::try_leave_keyboard() {
@@ -99,10 +122,10 @@ void Seat::try_leave_keyboard() {
   if (!surface) {
     return;
   }
-  auto& keyboards = server::get().seat->keyboard_resources;
-  auto  index     = keyboards.bucket(surface->client());
-  auto  serial    = server::get().next_serial();
-  std::for_each(keyboards.begin(index), keyboards.end(index),
+  auto index  = this->keyboard_resources.bucket(surface->client());
+  auto serial = server::get().next_serial();
+  std::for_each(this->keyboard_resources.begin(index),
+      this->keyboard_resources.end(index),
       [surface, serial](std::pair<wl_client*, wl_resource*> e) {
         wl_keyboard_send_leave(e.second, serial, surface->resource());
       });

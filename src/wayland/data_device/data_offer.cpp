@@ -7,6 +7,9 @@
 #include <functional>
 #include <string>
 
+#include "common.hpp"
+#include "server.hpp"
+#include "wayland/data_device/data_device.hpp"
 #include "wayland/data_device/data_source.hpp"
 
 namespace yaza::wayland::data_offer {
@@ -46,7 +49,10 @@ void destroy(wl_resource* resource) {
 }
 }  // namespace
 
-wl_resource* create(wl_client* client, data_source::DataSrc* data_source) {
+wl_resource* create(data_device::DataDevice* data_device) {
+  auto* data_source = server::get().seat->current_selection->data_source();
+  assert(data_source != nullptr);
+  auto*        client   = wl_resource_get_client(data_device->resource());
   wl_resource* resource = wl_resource_create(
       client, &wl_data_offer_interface, wl_data_offer_interface.version, 0);
   if (resource == nullptr) {
@@ -56,6 +62,7 @@ wl_resource* create(wl_client* client, data_source::DataSrc* data_source) {
   auto* self = new DataOffer(resource, data_source);
   wl_resource_set_implementation(resource, &kImpl, self, destroy);
 
+  wl_data_device_send_data_offer(data_device->resource(), resource);
   std::function<void(const std::string&)> handler =
       [resource](const std::string& mime_type) {
         wl_data_offer_send_offer(resource, mime_type.c_str());
