@@ -21,14 +21,12 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/string_cast.hpp>
-#include <memory>
 #include <optional>
-#include <vector>
 
 #include "common.hpp"
 #include "input/bounded_object.hpp"
 #include "input/input_listen_server.hpp"
-#include "renderer.hpp"
+#include "input/ray_caster.hpp"
 #include "server.hpp"
 #include "util/weakable_unique_ptr.hpp"
 #include "wayland/data_device/data_device.hpp"
@@ -36,49 +34,6 @@
 #include "zwin/bounded.hpp"
 
 namespace yaza::input {
-namespace {
-// clang-format off
-constexpr auto* kVertShader = GLSL(
-  uniform mat4 zVP;
-  uniform mat4 local_model;
-  layout(location = 0) in vec3 pos_in;
-  out vec3 pos;
-
-  void main() {
-    gl_Position = zVP * local_model * vec4(pos_in, 1.0);
-    pos = gl_Position.xyz;
-  }
-);
-constexpr auto* kFragShader = GLSL(
-  in  vec3 pos;
-  out vec4 color;
-
-  void main() {
-    color = vec4(0.0, 1.0, 0.0, 1.0);
-  }
-);
-// clang-format on
-}  // namespace
-Seat::Seat() {
-  if (server::get().remote->has_session()) {
-    this->init_ray_renderer();
-  }
-  this->session_established_listener_.set_handler(
-      [this](remote::Session* /*session*/) {
-        this->init_ray_renderer();
-      });
-  server::get().remote->listen_session_established(
-      this->session_established_listener_);
-
-  this->session_disconnected_listener_.set_handler(
-      [this](std::nullptr_t* /*data*/) {
-        this->ray_renderer_ = nullptr;
-      });
-  server::get().remote->listen_session_disconnected(
-      this->session_disconnected_listener_);
-  this->input_listen_server_ = std::make_unique<InputListenServer>();
-}
-
 bool Seat::is_focused_client(wl_client* client) {
   if (auto* focused_obj = this->keyboard_focused_surface_.lock()) {
     return client == focused_obj->client();
@@ -86,10 +41,6 @@ bool Seat::is_focused_client(wl_client* client) {
   return false;
 }
 
-RayGeometry Seat::ray_geometry() {
-  return {.origin = this->kOrigin,
-      .direction  = glm::rotate(this->ray_.rot, this->kBaseDirection)};
-}
 void Seat::set_keyboard_focused_surface(
     util::WeakPtr<input::BoundedObject> obj) {
   if (obj == this->keyboard_focused_surface_) {
@@ -170,15 +121,10 @@ void Seat::set_surface_as_cursor(
   }
 }
 void Seat::move_cursor() {
-  const auto r = this->cursor_distance_;  // shortening
   const auto pos =
-      this->kOrigin +
-      glm::vec3{                                                  //
-          r * sin(this->ray_.polar) * sin(this->ray_.azimuthal),  //
-          r * cos(this->ray_.polar),                              //
-          r * sin(this->ray_.polar) * cos(this->ray_.azimuthal)};
+      RayCaster::kOrigin + this->cursor_distance_ * this->ray_.direction();
   auto* cursor = dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock());
-  cursor->move(pos, this->ray_.rot, this->hotspot_);
+  cursor->move(pos, this->ray_.rot(), this->hotspot_);
 }
 
 void Seat::handle_mouse_button(uint32_t button, wl_pointer_button_state state) {
@@ -218,17 +164,7 @@ void Seat::request_start_move(wl_client* client) {
 }
 
 void Seat::move_rel_pointing(float polar, float azimuthal) {
-  constexpr float kPolarMin  = std::numbers::pi / 8.F;
-  constexpr float kPolarMax  = std::numbers::pi - kPolarMin;
-  auto            diff_polar = this->ray_.polar;
-  this->ray_.polar = std::clamp(this->ray_.polar + polar, kPolarMin, kPolarMax);
-  diff_polar       = this->ray_.polar - diff_polar;
-  this->ray_.azimuthal += azimuthal;
-  this->update_ray_rot();
-  if (this->ray_renderer_) {
-    this->ray_renderer_->commit();
-  }
-
+  const float diff_polar = this->ray_.move_rel(polar, azimuthal);
   switch (this->obj_state_) {
     case FocusedObjState::DEFAULT:
       this->check_intersection();
@@ -248,27 +184,27 @@ void Seat::check_intersection() {
   util::WeakPtr<BoundedObject> nearest_obj;
   std::optional<IntersectInfo> nearest_obj_info = std::nullopt;
 
-  auto check =
-      [this, direction = glm::rotate(this->ray_.rot, this->kBaseDirection),
-          &nearest_obj, &nearest_obj_info](auto&& objs) {
-        for (auto it = objs.begin(); it != objs.end();) {
-          if (auto* surface = it->lock()) {
-            auto result = surface->check_intersection(this->kOrigin, direction);
-            if (!result.has_value()) {
-              ++it;
-              continue;
-            }
-            if (!nearest_obj_info.has_value() ||
-                result->distance <= nearest_obj_info->distance) {
-              nearest_obj      = *it;
-              nearest_obj_info = result.value();
-            }
-            ++it;
-          } else {
-            it = objs.erase(it);
-          }
+  auto check = [direction = this->ray_.direction(), &nearest_obj,
+                   &nearest_obj_info](auto&& objs) {
+    for (auto it = objs.begin(); it != objs.end();) {
+      if (auto* surface = it->lock()) {
+        auto result =
+            surface->check_intersection(RayCaster::kOrigin, direction);
+        if (!result.has_value()) {
+          ++it;
+          continue;
         }
-      };
+        if (!nearest_obj_info.has_value() ||
+            result->distance <= nearest_obj_info->distance) {
+          nearest_obj      = *it;
+          nearest_obj_info = result.value();
+        }
+        ++it;
+      } else {
+        it = objs.erase(it);
+      }
+    }
+  };
   check(server::get().surfaces);
   check(server::get().bounded_apps);
 
@@ -286,6 +222,7 @@ void Seat::check_intersection() {
     this->focused_obj_->frame();
     // show the cursor nearer to origin than hit position
     this->cursor_distance_ = nearest_obj_info->distance * 0.98F;
+    this->ray_.set_length(this->cursor_distance_ * 0.9F);
   } else {
     // there is no intersected obj
     if (auto* obj = this->focused_obj_.lock()) {
@@ -305,7 +242,7 @@ bool Seat::set_focused_obj(util::WeakPtr<input::BoundedObject> obj) {
     obj->leave();
     obj->frame();
   }
-  if (auto* p = dynamic_cast<zwin::bounded::BoundedApp*>(obj.lock())) {
+  if (dynamic_cast<zwin::bounded::BoundedApp*>(obj.lock())) {
     auto index = this->data_device_resources.bucket(obj->client());
     LOG_INFO("Focus on BoundedApp! -> %lu", index);
     std::for_each(this->data_device_resources.begin(index),
@@ -318,48 +255,4 @@ bool Seat::set_focused_obj(util::WeakPtr<input::BoundedObject> obj) {
   return true;
 }
 
-/*
-         +y  -z (head facing direction)
-          ^  /
-          | /
-          |/
-----------------*----> +x
-         /|
-        + |
-       /  |
-     +z
-asterisk pos is expressed by (polar, azimuthal) = (0, pi/2)
-    plus pos is expressed by (polar, azimuthal) = (0, 0)
-*/
-void Seat::init_ray_renderer() {
-  this->ray_renderer_ = std::make_unique<Renderer>(kVertShader, kFragShader);
-  std::vector<float> vertices = {
-      0.F,
-      0.F,
-      0.F,  //
-      this->kBaseDirection.x,
-      this->kBaseDirection.y,
-      this->kBaseDirection.z,
-  };
-  this->ray_renderer_->register_buffer(0, 3, GL_FLOAT, vertices.data(),
-      sizeof(float) * vertices.size());  // NOLINT
-  this->ray_renderer_->request_draw_arrays(GL_LINE_STRIP, 0, 2);
-  this->update_ray_rot();
-  this->ray_renderer_->commit();
-}
-void Seat::update_ray_rot() {
-  this->ray_.rot =
-      glm::angleAxis(this->ray_.azimuthal, glm::vec3{0.F, 1.F, 0.F}) *
-      glm::angleAxis((std::numbers::pi_v<float> / 2.F) - this->ray_.polar,
-          glm::vec3{-1.F, 0.F, 0.F});
-
-  if (this->ray_renderer_) {
-    auto      length = this->cursor_.lock() ? this->cursor_distance_ * 0.9F :
-                                              Seat::kDefaultRayLen;
-    glm::mat4 mat    = glm::translate(glm::mat4(1.F), this->kOrigin) *
-                    glm::toMat4(this->ray_.rot) *
-                    glm::scale(glm::mat4(1.F), glm::vec3(length));
-    this->ray_renderer_->set_uniform_matrix(0, "local_model", mat);
-  }
-}
 }  // namespace yaza::input

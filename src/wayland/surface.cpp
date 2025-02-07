@@ -171,7 +171,9 @@ std::optional<input::IntersectInfo> Surface::check_intersection(
     return std::nullopt;
   }
   return input::IntersectInfo{
-      .distance = result->distance,
+      .origin    = origin,
+      .direction = direction,
+      .distance  = result->distance,
       .pos{static_cast<float>(this->tex_width_) * result->u,
            static_cast<float>(this->tex_height_) * (1.F - result->v), 0.F}
   };

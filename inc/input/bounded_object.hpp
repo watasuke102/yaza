@@ -8,9 +8,14 @@
 #include "util/box.hpp"
 
 namespace yaza::input {
+// FIXME: are there any better data structures?
 struct IntersectInfo {
+  // in; for BoundedApp
+  glm::vec3 origin;
+  glm::vec3 direction;
+  // out
   float     distance;
-  glm::vec3 pos;
+  glm::vec3 pos;  // for Surface
 };
 
 class BoundedObject {
@@ -48,6 +53,6 @@ class BoundedObject {
   [[nodiscard]] virtual wl_client*   client() const                     = 0;
 
  protected:
-  util::Box geom_;
+  util::Box geom_;  // NOLINT
 };
 }  // namespace yaza::input

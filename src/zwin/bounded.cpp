@@ -49,17 +49,16 @@ BoundedApp::~BoundedApp() {
   wl_resource_set_destructor(this->resource_, nullptr);
 }
 
-void BoundedApp::enter(input::IntersectInfo& /*intersect_info*/) {
-  auto     ray_geometry = server::get().seat->ray_geometry();
+void BoundedApp::enter(input::IntersectInfo& intersect_info) {
   wl_array origin;
   wl_array_init(&origin);
-  if (!util::convert::to_wl_array(&ray_geometry.origin, &origin)) {
+  if (!util::convert::to_wl_array(&intersect_info.origin, &origin)) {
     wl_resource_post_no_memory(this->resource());
     return;
   }
   wl_array direction;
   wl_array_init(&direction);
-  if (!util::convert::to_wl_array(&ray_geometry.direction, &direction)) {
+  if (!util::convert::to_wl_array(&intersect_info.direction, &direction)) {
     wl_resource_post_no_memory(this->resource());
     return;
   }
@@ -76,17 +75,16 @@ void BoundedApp::leave() {
         this->virtual_object_->resource());
   });
 }
-void BoundedApp::motion(input::IntersectInfo& /*intersect_info*/) {
-  auto     ray_geometry = server::get().seat->ray_geometry();
+void BoundedApp::motion(input::IntersectInfo& intersect_info) {
   wl_array origin;
   wl_array_init(&origin);
-  if (!util::convert::to_wl_array(&ray_geometry.origin, &origin)) {
+  if (!util::convert::to_wl_array(&intersect_info.origin, &origin)) {
     wl_resource_post_no_memory(this->resource());
     return;
   }
   wl_array direction;
   wl_array_init(&direction);
-  if (!util::convert::to_wl_array(&ray_geometry.direction, &direction)) {
+  if (!util::convert::to_wl_array(&intersect_info.direction, &direction)) {
     wl_resource_post_no_memory(this->resource());
     return;
   }
@@ -156,8 +154,10 @@ std::optional<input::IntersectInfo> BoundedApp::check_intersection(
   }
 
   return input::IntersectInfo{
-      .distance = std::max(inner_min_distance.value(), outer_distance.value()),
-      .pos      = glm::vec3(),
+      .origin    = origin,
+      .direction = direction,
+      .distance  = std::max(inner_min_distance.value(), outer_distance.value()),
+      .pos       = glm::vec3(),
   };
 }
 
