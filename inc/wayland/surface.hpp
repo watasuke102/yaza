@@ -2,6 +2,7 @@
 
 #include <wayland-server-core.h>
 #include <wayland-server.h>
+#include <xdg-shell-protocol.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -20,15 +21,19 @@
 #include "util/data_pool.hpp"
 #include "util/signal.hpp"
 
+namespace yaza::xdg_shell::xdg_toplevel {
+class XdgTopLevel;
+}
+
 namespace yaza::wayland::surface {
-// TODO: CURSOR surface should be owned by Seat?
-// (Should be moved from Server)
 enum class Role : uint8_t {
   DEFAULT,
   CURSOR,
+  XDG_TOPLEVEL,
+  XDG_POPUP,
 };
-using RoleObject =
-    std::variant<std::monostate, glm::ivec2 /* cursor: hotspot */>;
+using RoleObject = std::variant<std::monostate,
+    glm::ivec2 /* cursor: hotspot */, xdg_shell::xdg_toplevel::XdgTopLevel*>;
 
 class Surface : public input::BoundedObject {
  public:
@@ -59,6 +64,8 @@ class Surface : public input::BoundedObject {
   void set_role(Role role, RoleObject role_obj);
   void set_offset(glm::ivec2 offset);
   void set_active(bool is_active);
+  void on_focus();
+  void on_unfocus();
   void move(glm::vec3 pos, glm::quat rot);  // for CURSOR
   void listen_committed(util::Listener<std::nullptr_t*>& listener);
 

@@ -17,8 +17,12 @@ class XdgSurface {
       util::WeakPtr<wayland::surface::Surface>&& surface);
   ~XdgSurface();
 
+  void set_wl_surface_role(
+      wayland::surface::Role role, wayland::surface::RoleObject obj);
+  void send_configure();
+
  private:
-  bool activated_ = false;
+  bool is_first_commit_ = true;
 
   util::WeakPtr<wayland::surface::Surface> wl_surface_;
   util::Listener<std::nullptr_t*>          wl_surface_committed_listener_;

@@ -6,6 +6,7 @@
 
 #include "server.hpp"
 #include "util/weakable_unique_ptr.hpp"
+#include "wayland/surface.hpp"
 #include "xdg_shell/xdg_popup.hpp"
 #include "xdg_shell/xdg_toplevel.hpp"
 
@@ -15,10 +16,9 @@ XdgSurface::XdgSurface(uint32_t id, wl_resource* resource,
     : wl_surface_(std::move(surface)), resource_(resource), id_(id) {
   this->wl_surface_committed_listener_.set_handler(
       [this](std::nullptr_t* /*data*/) {
-        if (!this->activated_) {
-          this->activated_ = true;
-          xdg_surface_send_configure(
-              this->resource_, server::get().next_serial());
+        if (this->is_first_commit_) {
+          this->is_first_commit_ = false;
+          this->send_configure();
         }
       });
   this->wl_surface_.lock()->listen_committed(
@@ -29,12 +29,27 @@ XdgSurface::~XdgSurface() {
   LOG_DEBUG(" destructor: xdg_surface@%u", this->id_);
 }
 
+void XdgSurface::set_wl_surface_role(
+    wayland::surface::Role role, wayland::surface::RoleObject obj) {
+  if (auto* wl_surface = this->wl_surface_.lock()) {
+    wl_surface->set_role(role, obj);
+  }
+}
+void XdgSurface::send_configure() {
+  xdg_surface_send_configure(this->resource_, server::get().next_serial());
+}
+
 namespace {
 void destroy(wl_client* /* client */, wl_resource* resource) {
   wl_resource_destroy(resource);
 }
 void get_toplevel(wl_client* client, wl_resource* resource, uint32_t id) {
-  xdg_toplevel::create(client, wl_resource_get_version(resource), id);
+  auto* surface = static_cast<XdgSurface*>(wl_resource_get_user_data(resource));
+  if (auto* toplevel = xdg_toplevel::create(
+          client, wl_resource_get_version(resource), id, surface)) {
+    surface->set_wl_surface_role(
+        wayland::surface::Role::XDG_TOPLEVEL, toplevel);
+  }
 }
 void get_popup(wl_client* client, wl_resource* /* resource */, uint32_t id,
     wl_resource* /* parent */, wl_resource* /* positioner */) {

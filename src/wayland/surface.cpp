@@ -1,6 +1,7 @@
 #include "wayland/surface.hpp"
 
 #include <GLES3/gl32.h>
+#include <linux/input-event-codes.h>
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
 #include <wayland-server.h>
@@ -28,7 +29,9 @@
 #include "util/box.hpp"
 #include "util/intersection.hpp"
 #include "util/time.hpp"
+#include "util/visitor_list.hpp"
 #include "util/weakable_unique_ptr.hpp"
+#include "xdg_shell/xdg_toplevel.hpp"
 
 namespace yaza::wayland::surface {
 namespace {
@@ -263,6 +266,18 @@ void Surface::set_active(bool active) {
     this->renderer_->commit();
   }
 }
+
+void Surface::on_focus() {
+  util::VisitorList([](xdg_shell::xdg_toplevel::XdgTopLevel*& xdg_toplevel) {
+    xdg_toplevel->set_activated(true);
+  }).visit(this->role_obj_);
+}
+void Surface::on_unfocus() {
+  util::VisitorList([](xdg_shell::xdg_toplevel::XdgTopLevel*& xdg_toplevel) {
+    xdg_toplevel->set_activated(false);
+  }).visit(this->role_obj_);
+}
+
 void Surface::move(float polar, float azimuthal) {
   this->polar_ += polar;
   this->azimuthal_ += azimuthal;

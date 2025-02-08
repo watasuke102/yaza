@@ -48,6 +48,10 @@ void ServerSeat::set_keyboard_focused_surface(
   }
   this->try_leave_keyboard();
 
+  if (auto* surface = dynamic_cast<wayland::surface::Surface*>(obj.lock())) {
+    surface->on_focus();
+  }
+
   wl_array keys;
   wl_array_init(&keys);
   auto* client_seat = this->client_seats[obj->client()];
@@ -69,6 +73,7 @@ void ServerSeat::try_leave_keyboard() {
   if (!surface) {
     return;
   }
+  surface->on_unfocus();
   this->client_seats[surface->client()]->keyboard_foreach(
       [serial = server::get().next_serial(), &surface](
           wl_resource* wl_keyboard) {
