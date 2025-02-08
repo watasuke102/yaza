@@ -7,7 +7,6 @@
 #include <wayland-server.h>
 #include <wayland-util.h>
 
-#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
@@ -88,26 +87,15 @@ void ServerSeat::set_surface_as_cursor(
     if (this->cursor_->resource() == surface_resource) {
       return;
     }
-    {
-      auto* cursor =
-          dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock());
-      cursor->set_active(false);
-    }
-    server::get().surfaces.push_front(std::move(this->cursor_));
+    auto* cursor =
+        dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock());
+    cursor->set_active(false);
+    this->cursor_.reset();
   }
-  assert(this->cursor_.lock() == nullptr);
 
-  server::get().remove_expired_surfaces();
-  auto& surfaces = server::get().surfaces;
-  auto  it       = std::find_if(surfaces.begin(), surfaces.end(),
-             [surface_resource](util::WeakPtr<input::BoundedObject>& s) {
-        return s->resource() == surface_resource;
-      });
-
-  if (it != surfaces.end()) {
-    this->cursor_ = *it;
-    surfaces.erase(it);
-    assert(this->cursor_.lock() != nullptr);
+  auto surface = server::get().get_surface_from_resource(surface_resource);
+  if (surface.has_value()) {
+    this->cursor_ = surface.value();
     auto* cursor =
         dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock());
     cursor->set_role(
@@ -182,28 +170,19 @@ void ServerSeat::check_intersection() {
   std::optional<IntersectInfo> nearest_obj_info = std::nullopt;
 
   auto check = [direction = this->ray_.direction(), &nearest_obj,
-                   &nearest_obj_info](auto&& objs) {
-    for (auto it = objs.begin(); it != objs.end();) {
-      if (auto* surface = it->lock()) {
-        auto result =
-            surface->check_intersection(RayCaster::kOrigin, direction);
-        if (!result.has_value()) {
-          ++it;
-          continue;
-        }
-        if (!nearest_obj_info.has_value() ||
-            result->distance <= nearest_obj_info->distance) {
-          nearest_obj      = *it;
-          nearest_obj_info = result.value();
-        }
-        ++it;
-      } else {
-        it = objs.erase(it);
-      }
+                   &nearest_obj_info](util::WeakPtr<BoundedObject>& obj) {
+    auto result = obj->check_intersection(RayCaster::kOrigin, direction);
+    if (!result.has_value()) {
+      return;
+    }
+    if (!nearest_obj_info.has_value() ||
+        result->distance <= nearest_obj_info->distance) {
+      nearest_obj      = obj;
+      nearest_obj_info = result.value();
     }
   };
-  check(server::get().surfaces);
-  check(server::get().bounded_apps);
+  server::get().foreach_surface(check);
+  server::get().foreach_bounded_app(check);
 
   if (nearest_obj_info.has_value()) {
     bool focus_changed = this->set_focused_obj(nearest_obj);

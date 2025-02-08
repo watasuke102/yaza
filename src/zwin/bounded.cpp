@@ -267,7 +267,7 @@ void create(wl_client* client, uint32_t id, wl_array* half_size,
   auto* self = new util::UniPtr<input::BoundedObject>(std::move(obj));
 
   wl_resource_set_implementation(resource, &kImpl, self, destroy);
-  server::get().bounded_apps.emplace_back(self->weak());
+  server::get().add_bounded_app(self->weak());
   virtual_object->set_app(self);
 }
 }  // namespace yaza::zwin::bounded

@@ -139,13 +139,9 @@ void Surface::button(uint32_t button, wl_pointer_button_state state) {
         wl_pointer_send_button(wl_pointer, serial, now, button, state);
       });
   if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
-    auto& surfaces = server::get().surfaces;
-    auto  it       = std::find_if(surfaces.begin(), surfaces.end(),
-               [this](util::WeakPtr<input::BoundedObject>& s) {
-          return s->resource() == this->resource();
-        });
-    if (it != surfaces.end()) {
-      server::get().seat->set_keyboard_focused_surface(*it);
+    auto surface = server::get().get_surface_from_resource(this->resource());
+    if (surface.has_value()) {
+      server::get().seat->set_keyboard_focused_surface(surface.value());
     }
   }
 }
@@ -455,6 +451,6 @@ void create(wl_client* client, int version, uint32_t id) {
       std::make_shared<Surface>(surface_resource));
   auto* surface = new util::UniPtr<input::BoundedObject>(std::move(obj));
   wl_resource_set_implementation(surface_resource, &kImpl, surface, destroy);
-  server::get().surfaces.emplace_back(surface->weak());
+  server::get().add_surface(surface->weak());
 }
 }  // namespace yaza::wayland::surface

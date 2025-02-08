@@ -6,6 +6,8 @@
 
 #include <csignal>
 #include <cstdint>
+#include <optional>
+#include <utility>
 
 #include "common.hpp"
 #include "input/bounded_object.hpp"
@@ -118,9 +120,44 @@ wl_event_loop* Server::loop() {
   return wl_display_get_event_loop(this->wl_display_);
 }
 
-void Server::remove_expired_surfaces() {
-  this->surfaces.remove_if([](const util::WeakPtr<input::BoundedObject>& s) {
-    return !s.lock();
-  });
+void Server::add_surface(util::WeakPtr<input::BoundedObject>&& surface) {
+  this->surfaces_.emplace_front(std::move(surface));
+}
+void Server::add_bounded_app(
+    util::WeakPtr<input::BoundedObject>&& bounded_app) {
+  this->bounded_apps_.emplace_front(std::move(bounded_app));
+}
+
+void Server::foreach_surface(
+    const std::function<void(util::WeakPtr<input::BoundedObject>&)>& handler) {
+  for (auto it = this->surfaces_.begin(); it != this->surfaces_.end();) {
+    if (it->lock()) {
+      handler(*it);
+      ++it;
+    } else {
+      it = this->surfaces_.erase(it);
+    }
+  }
+}
+void Server::foreach_bounded_app(
+    const std::function<void(util::WeakPtr<input::BoundedObject>&)>& handler) {
+  for (auto it = this->bounded_apps_.begin();
+      it != this->bounded_apps_.end();) {
+    if (it->lock()) {
+      handler(*it);
+      ++it;
+    } else {
+      it = this->bounded_apps_.erase(it);
+    }
+  }
+}
+
+std::optional<util::WeakPtr<input::BoundedObject>>
+Server::get_surface_from_resource(wl_resource* resource) {
+  auto it = std::find_if(this->surfaces_.begin(), this->surfaces_.end(),
+      [resource](util::WeakPtr<input::BoundedObject>& s) {
+        return s->resource() == resource;
+      });
+  return it == this->surfaces_.end() ? std::nullopt : std::make_optional(*it);
 }
 }  // namespace yaza::server
