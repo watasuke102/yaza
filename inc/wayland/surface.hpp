@@ -71,7 +71,8 @@ class Surface : public input::BoundedObject {
   struct {
     std::optional<wl_resource*> buffer = std::nullopt;
     wl_list                     frame_callback_list;
-    glm::ivec2                  offset = glm::vec2(0);  // surface local
+    glm::ivec2                  offset         = glm::vec2(0);  // surface local
+    bool                        offset_changed = false;
   } pending_;
   struct {
     wl_list frame_callback_list;

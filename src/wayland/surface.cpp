@@ -33,15 +33,15 @@ namespace yaza::wayland::surface {
 namespace {
 // clang-format off
 constexpr auto* kVertShader = GLSL(
-  uniform mat4 zMVP;
-  uniform mat4 surface_scale;
+  uniform mat4 zVP;
+  uniform mat4 local_model;
   layout(location = 0) in vec3 pos;
   layout(location = 1) in vec2 vertex_uv;
 
   out vec2 uv;
 
   void main() {
-    gl_Position = zMVP * surface_scale * vec4(pos, 1.0);
+    gl_Position = zVP * local_model * vec4(pos, 1.0);
     uv          = vertex_uv;
   }
 );
@@ -230,10 +230,12 @@ void Surface::update_pos_and_rot() {
   }
 }
 void Surface::sync_geom() {
-  auto scale = this->is_active_ ? this->geom_.scale_mat() : glm::mat4(0.F);
-  this->renderer_->set_uniform_matrix(0, "surface_scale", scale);
-  this->renderer_->move_abs(this->geom_.pos());
-  this->renderer_->set_rot(this->geom_.rot());
+  auto pos =
+      this->geom_.pos() +
+      (glm::vec3(this->offset_.x, -this->offset_.y, 0.F) / kPixelPerMeter);
+  auto mat = glm::translate(glm::mat4(1.F), pos) * this->geom_.rotation_mat() *
+             (this->is_active_ ? this->geom_.scale_mat() : glm::mat4(0.F));
+  this->renderer_->set_uniform_matrix(0, "local_model", mat);
 }
 void Surface::set_texture_size(uint32_t width, uint32_t height) {
   this->tex_width_     = width;
@@ -249,7 +251,8 @@ void Surface::set_role(Role role) {
   this->role_ = role;
 }
 void Surface::set_offset(glm::ivec2 offset) {
-  this->pending_.offset = offset;
+  this->pending_.offset_changed = true;
+  this->pending_.offset         = offset;
 }
 void Surface::set_active(bool active) {
   this->is_active_ = active;
@@ -268,10 +271,8 @@ void Surface::move(float polar, float azimuthal) {
   }
 }
 void Surface::move(glm::vec3 pos, glm::quat rot, glm::ivec2 hotspot) {
-  // FIXME: offset isn't applied until the ray moves
-  glm::vec3 top_left(this->offset_ - hotspot, 0.F);
-  top_left.y *= -1;
-  this->geom_.pos() = pos - (top_left / kPixelPerMeter);
+  this->geom_.pos() =
+      pos - (glm::vec3{hotspot.x, -hotspot.y, 0.F} / kPixelPerMeter);
   this->geom_.x() +=
       static_cast<float>(this->tex_width_) / 2.F / kPixelPerMeter;
   this->geom_.y() -=
@@ -303,7 +304,13 @@ void Surface::listen_committed(util::Listener<std::nullptr_t*>& listener) {
 }
 
 void Surface::commit() {
-  this->offset_ -= this->pending_.offset;
+  if (this->pending_.offset_changed) {
+    this->offset_ += this->pending_.offset;
+    this->pending_.offset_changed = false;
+    if (this->renderer_) {
+      this->sync_geom();
+    }
+  }
 
   if (this->pending_.buffer.has_value()) {
     if (this->texture_.has_data()) {
