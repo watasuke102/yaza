@@ -11,6 +11,7 @@
 #include <memory>
 #include <numbers>
 #include <optional>
+#include <variant>
 
 #include "common.hpp"
 #include "input/bounded_object.hpp"
@@ -26,6 +27,8 @@ enum class Role : uint8_t {
   DEFAULT,
   CURSOR,
 };
+using RoleObject =
+    std::variant<std::monostate, glm::ivec2 /* cursor: hotspot */>;
 
 class Surface : public input::BoundedObject {
  public:
@@ -53,10 +56,10 @@ class Surface : public input::BoundedObject {
   void queue_frame_callback(wl_resource* resource) const;
   void commit();
 
-  void set_role(Role role);
+  void set_role(Role role, RoleObject role_obj);
   void set_offset(glm::ivec2 offset);
   void set_active(bool is_active);
-  void move(glm::vec3 pos, glm::quat rot, glm::ivec2 hotspot);  // for CURSOR
+  void move(glm::vec3 pos, glm::quat rot);  // for CURSOR
   void listen_committed(util::Listener<std::nullptr_t*>& listener);
 
   Role role() {
@@ -80,7 +83,8 @@ class Surface : public input::BoundedObject {
   glm::ivec2 offset_    = glm::vec2(0);  // surface local
   bool       is_active_ = true;          // only for CURSOR
 
-  Role role_ = Role::DEFAULT;
+  Role       role_ = Role::DEFAULT;
+  RoleObject role_obj_;
 
   util::DataPool texture_;
   uint32_t       tex_width_;

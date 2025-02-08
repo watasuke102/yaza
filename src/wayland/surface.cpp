@@ -15,6 +15,7 @@
 #include <glm/ext/quaternion_geometric.hpp>
 #include <glm/ext/quaternion_transform.hpp>
 #include <glm/ext/vector_float3.hpp>
+#include <glm/ext/vector_int2.hpp>
 #include <glm/geometric.hpp>
 #include <memory>
 #include <optional>
@@ -247,8 +248,9 @@ void Surface::set_texture_size(uint32_t width, uint32_t height) {
   }
 }
 
-void Surface::set_role(Role role) {
-  this->role_ = role;
+void Surface::set_role(Role role, RoleObject role_obj) {
+  this->role_     = role;
+  this->role_obj_ = role_obj;
 }
 void Surface::set_offset(glm::ivec2 offset) {
   this->pending_.offset_changed = true;
@@ -270,7 +272,8 @@ void Surface::move(float polar, float azimuthal) {
     this->renderer_->commit();
   }
 }
-void Surface::move(glm::vec3 pos, glm::quat rot, glm::ivec2 hotspot) {
+void Surface::move(glm::vec3 pos, glm::quat rot) {
+  auto hotspot = std::get<glm::ivec2>(this->role_obj_);
   this->geom_.pos() =
       pos - (glm::vec3{hotspot.x, -hotspot.y, 0.F} / kPixelPerMeter);
   this->geom_.x() +=

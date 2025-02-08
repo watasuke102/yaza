@@ -17,6 +17,7 @@
 #include <glm/ext/quaternion_trigonometric.hpp>
 #include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_float3.hpp>
+#include <glm/ext/vector_int2.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -78,9 +79,6 @@ void ServerSeat::try_leave_keyboard() {
 
 void ServerSeat::set_surface_as_cursor(
     wl_resource* surface_resource, int32_t hotspot_x, int32_t hotspot_y) {
-  this->hotspot_.x = hotspot_x;
-  this->hotspot_.y = hotspot_y;
-
   if (this->cursor_.lock()) {
     if (this->cursor_->resource() == surface_resource) {
       return;
@@ -107,7 +105,8 @@ void ServerSeat::set_surface_as_cursor(
     assert(this->cursor_.lock() != nullptr);
     auto* cursor =
         dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock());
-    cursor->set_role(wayland::surface::Role::CURSOR);
+    cursor->set_role(
+        wayland::surface::Role::CURSOR, glm::ivec2{hotspot_x, hotspot_y});
     cursor->set_active(true);
     this->move_cursor();
   }
@@ -116,7 +115,7 @@ void ServerSeat::move_cursor() {
   const auto pos =
       RayCaster::kOrigin + this->cursor_distance_ * this->ray_.direction();
   auto* cursor = dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock());
-  cursor->move(pos, this->ray_.rot(), this->hotspot_);
+  cursor->move(pos, this->ray_.rot());
 }
 
 void ServerSeat::handle_mouse_button(

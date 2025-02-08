@@ -58,9 +58,8 @@ class ServerSeat {
   void                                try_leave_keyboard();
 
   util::WeakPtr<input::BoundedObject> cursor_;
-  glm::ivec2                          hotspot_;
-  void                                move_cursor();
   float                               cursor_distance_;
+  void                                move_cursor();
 
   InputListenServer input_listen_server_;
   RayCaster         ray_;
