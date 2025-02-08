@@ -67,6 +67,12 @@ class Surface : public input::BoundedObject {
   void on_focus();
   void on_unfocus();
   void move(glm::vec3 pos, glm::quat rot);  // for CURSOR
+
+  /// @param index 0 is the nearest to the camera
+  /// @return true if the index is **consumed** (reposition is proceeded)
+  /// e.g. return false if the surface role is cursor
+  bool update_distance_by_layer_index(uint64_t index);
+
   void listen_committed(util::Listener<std::nullptr_t*>& listener);
 
   Role role() {
@@ -98,8 +104,10 @@ class Surface : public input::BoundedObject {
   uint32_t       tex_height_;
   void           set_texture_size(uint32_t width, uint32_t height);
 
-  float                     polar_     = std::numbers::pi / 2.F;
-  float                     azimuthal_ = std::numbers::pi;
+  constexpr static float    kMinDistance = 0.4F;
+  float                     distance_    = kMinDistance;  /// from origin
+  float                     polar_       = std::numbers::pi / 2.F;
+  float                     azimuthal_   = std::numbers::pi;
   void                      update_pos_and_rot();
   void                      sync_geom();
   std::unique_ptr<Renderer> renderer_;

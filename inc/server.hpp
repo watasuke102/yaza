@@ -44,7 +44,8 @@ class Server {
       const std::function<void(util::WeakPtr<input::BoundedObject>&)>& handler);
 
   std::optional<util::WeakPtr<input::BoundedObject>> get_surface_from_resource(
-      wl_resource* resource);
+      wl_resource* wl_surface);
+  void raise_surface_top(wl_resource* wl_surface);
 
  private:
   Server()  = default;
@@ -53,6 +54,7 @@ class Server {
 
   std::list<util::WeakPtr<input::BoundedObject>> surfaces_;
   std::list<util::WeakPtr<input::BoundedObject>> bounded_apps_;
+  void                                           reorder_surfaces();
 
   bool        is_initialized_ = false;
   bool        is_started_     = false;

@@ -61,9 +61,9 @@ constexpr auto* kFragShader = GLSL(
   }
 );
 // clang-format on
-constexpr float kPixelPerMeter    = 9000.F;
-constexpr float kRadiusFromOrigin = 0.4F;
-constexpr float kOffsetY          = 0.85F;
+constexpr float kPixelPerMeter = 9000.F;
+constexpr float kOffsetY       = 0.85F;
+constexpr float kLayerZOffset  = 0.0001F;
 }  // namespace
 Surface::Surface(wl_resource* resource)
     : input::BoundedObject(util::Box(
@@ -211,11 +211,9 @@ void Surface::init_renderer() {
 }
 
 void Surface::update_pos_and_rot() {
-  this->geom_.x() =
-      kRadiusFromOrigin * sin(this->polar_) * sin(this->azimuthal_);
-  this->geom_.y() = kOffsetY + kRadiusFromOrigin * cos(this->polar_);
-  this->geom_.z() =
-      kRadiusFromOrigin * sin(this->polar_) * cos(this->azimuthal_);
+  this->geom_.x() = this->distance_ * sin(this->polar_) * sin(this->azimuthal_);
+  this->geom_.y() = kOffsetY + this->distance_ * cos(this->polar_);
+  this->geom_.z() = this->distance_ * sin(this->polar_) * cos(this->azimuthal_);
 
   // add $pi$ to $azimuthal$ to let Surface look at the camera
   this->geom_.rot() =
@@ -264,7 +262,9 @@ void Surface::set_active(bool active) {
 }
 
 void Surface::on_focus() {
-  util::VisitorList([](xdg_shell::xdg_toplevel::XdgTopLevel*& xdg_toplevel) {
+  util::VisitorList([this](
+                        xdg_shell::xdg_toplevel::XdgTopLevel*& xdg_toplevel) {
+    server::get().raise_surface_top(this->resource());
     xdg_toplevel->set_activated(true);
   }).visit(this->role_obj_);
 }
@@ -299,6 +299,18 @@ void Surface::move(glm::vec3 pos, glm::quat rot) {
     this->sync_geom();
     this->renderer_->commit();
   }
+}
+
+bool Surface::update_distance_by_layer_index(uint64_t index) {
+  if (this->role_ == Role::CURSOR) {
+    return false;
+  }
+  this->distance_ = kMinDistance + (kLayerZOffset * static_cast<float>(index));
+  this->update_pos_and_rot();
+  if (this->renderer_ && this->texture_.has_data()) {
+    this->renderer_->commit();
+  }
+  return true;
 }
 
 void Surface::attach(wl_resource* buffer) {

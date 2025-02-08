@@ -14,6 +14,7 @@
 #include "input/server_seat.hpp"
 #include "remote/remote.hpp"
 #include "util/weakable_unique_ptr.hpp"
+#include "wayland/surface.hpp"
 #include "wayland/wayland.hpp"
 #include "xdg_shell/xdg_shell.hpp"
 #include "zwin/zwin.hpp"
@@ -122,6 +123,7 @@ wl_event_loop* Server::loop() {
 
 void Server::add_surface(util::WeakPtr<input::BoundedObject>&& surface) {
   this->surfaces_.emplace_front(std::move(surface));
+  this->reorder_surfaces();
 }
 void Server::add_bounded_app(
     util::WeakPtr<input::BoundedObject>&& bounded_app) {
@@ -153,11 +155,38 @@ void Server::foreach_bounded_app(
 }
 
 std::optional<util::WeakPtr<input::BoundedObject>>
-Server::get_surface_from_resource(wl_resource* resource) {
+Server::get_surface_from_resource(wl_resource* wl_surface) {
   auto it = std::find_if(this->surfaces_.begin(), this->surfaces_.end(),
-      [resource](util::WeakPtr<input::BoundedObject>& s) {
-        return s->resource() == resource;
+      [wl_surface](util::WeakPtr<input::BoundedObject>& s) {
+        if (!s.lock()) {
+          return false;
+        }
+        return s->resource() == wl_surface;
       });
   return it == this->surfaces_.end() ? std::nullopt : std::make_optional(*it);
+}
+void Server::raise_surface_top(wl_resource* wl_surface) {
+  auto it = std::find_if(this->surfaces_.begin(), this->surfaces_.end(),
+      [wl_surface](util::WeakPtr<input::BoundedObject>& s) {
+        if (!s.lock()) {
+          return false;
+        }
+        return s->resource() == wl_surface;
+      });
+  if (it != this->surfaces_.end()) {
+    this->surfaces_.splice(this->surfaces_.begin(), this->surfaces_, it);
+    this->reorder_surfaces();
+  }
+}
+
+void Server::reorder_surfaces() {
+  uint64_t surface_index = 0;
+  this->foreach_surface(
+      [&surface_index](util::WeakPtr<input::BoundedObject>& obj) {
+        auto* surface = dynamic_cast<wayland::surface::Surface*>(obj.lock());
+        if (surface->update_distance_by_layer_index(surface_index)) {
+          ++surface_index;
+        }
+      });
 }
 }  // namespace yaza::server
