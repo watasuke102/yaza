@@ -8,6 +8,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <cstdio>
 #include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/quaternion_float.hpp>
@@ -104,34 +105,35 @@ Surface::~Surface() {
 }
 
 void Surface::enter(input::IntersectInfo& intersect_info) {
-  if (auto* wl_pointer =
-          server::get().seat->pointer_resources[this->client()]) {
-    wl_pointer_send_enter(wl_pointer, server::get().next_serial(),
-        this->resource(), wl_fixed_from_double(intersect_info.pos.x),
-        wl_fixed_from_double(intersect_info.pos.y));
-  }
+  server::get().seat->client_seats[this->client()]->pointer_foreach(
+      [this, serial = server::get().next_serial(),
+          x = wl_fixed_from_double(intersect_info.pos.x),
+          y = wl_fixed_from_double(intersect_info.pos.y)](
+          wl_resource* wl_pointer) {
+        wl_pointer_send_enter(wl_pointer, serial, this->resource(), x, y);
+      });
 }
 void Surface::leave() {
-  if (auto* wl_pointer =
-          server::get().seat->pointer_resources[this->client()]) {
-    wl_pointer_send_leave(
-        wl_pointer, server::get().next_serial(), this->resource());
-  }
+  server::get().seat->client_seats[this->client()]->pointer_foreach(
+      [this, serial = server::get().next_serial()](wl_resource* wl_pointer) {
+        wl_pointer_send_leave(wl_pointer, serial, this->resource());
+      });
 }
 void Surface::motion(input::IntersectInfo& intersect_info) {
-  if (auto* wl_pointer =
-          server::get().seat->pointer_resources[this->client()]) {
-    wl_pointer_send_motion(wl_pointer, util::now_msec(),
-        wl_fixed_from_double(intersect_info.pos.x),
-        wl_fixed_from_double(intersect_info.pos.y));
-  }
+  server::get().seat->client_seats[this->client()]->pointer_foreach(
+      [serial = server::get().next_serial(),
+          x   = wl_fixed_from_double(intersect_info.pos.x),
+          y   = wl_fixed_from_double(intersect_info.pos.y)](
+          wl_resource* wl_pointer) {
+        wl_pointer_send_motion(wl_pointer, serial, x, y);
+      });
 }
 void Surface::button(uint32_t button, wl_pointer_button_state state) {
-  if (auto* wl_pointer =
-          server::get().seat->pointer_resources[this->client()]) {
-    wl_pointer_send_button(wl_pointer, server::get().next_serial(),
-        util::now_msec(), button, state);
-  }
+  server::get().seat->client_seats[this->client()]->pointer_foreach(
+      [serial = server::get().next_serial(), now = util::now_msec(), button,
+          state](wl_resource* wl_pointer) {
+        wl_pointer_send_button(wl_pointer, serial, now, button, state);
+      });
   if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
     auto& surfaces = server::get().surfaces;
     auto  it       = std::find_if(surfaces.begin(), surfaces.end(),
@@ -144,17 +146,18 @@ void Surface::button(uint32_t button, wl_pointer_button_state state) {
   }
 }
 void Surface::axis(float amount) {
-  if (auto* wl_pointer =
-          server::get().seat->pointer_resources[this->client()]) {
-    wl_pointer_send_axis(wl_pointer, util::now_msec(),
-        WL_POINTER_AXIS_VERTICAL_SCROLL, wl_fixed_from_double(amount));
-  }
+  server::get().seat->client_seats[this->client()]->pointer_foreach(
+      [now = util::now_msec(), amount = wl_fixed_from_double(amount)](
+          wl_resource* wl_pointer) {
+        wl_pointer_send_axis(
+            wl_pointer, now, WL_POINTER_AXIS_VERTICAL_SCROLL, amount);
+      });
 }
 void Surface::frame() {
-  if (auto* wl_pointer =
-          server::get().seat->pointer_resources[this->client()]) {
-    wl_pointer_send_frame(wl_pointer);
-  }
+  server::get().seat->client_seats[this->client()]->pointer_foreach(
+      [](wl_resource* wl_pointer) {
+        wl_pointer_send_frame(wl_pointer);
+      });
 }
 std::optional<input::IntersectInfo> Surface::check_intersection(
     const glm::vec3& origin, const glm::vec3& direction) {
@@ -177,9 +180,6 @@ std::optional<input::IntersectInfo> Surface::check_intersection(
       .pos{static_cast<float>(this->tex_width_) * result->u,
            static_cast<float>(this->tex_height_) * (1.F - result->v), 0.F}
   };
-}
-bool Surface::is_active() {
-  return server::get().seat->pointer_resources[this->client()] != nullptr;
 }
 
 void Surface::init_renderer() {

@@ -1,4 +1,4 @@
-#include "input/seat.hpp"
+#include "input/server_seat.hpp"
 
 #include <GLES3/gl32.h>
 #include <linux/input-event-codes.h>
@@ -23,7 +23,6 @@
 #include <glm/gtx/string_cast.hpp>
 #include <optional>
 
-#include "common.hpp"
 #include "input/bounded_object.hpp"
 #include "input/input_listen_server.hpp"
 #include "input/ray_caster.hpp"
@@ -34,57 +33,50 @@
 #include "zwin/bounded.hpp"
 
 namespace yaza::input {
-bool Seat::is_focused_client(wl_client* client) {
+bool ServerSeat::is_focused_client(wl_client* client) {
   if (auto* focused_obj = this->keyboard_focused_surface_.lock()) {
     return client == focused_obj->client();
   }
   return false;
 }
 
-void Seat::set_keyboard_focused_surface(
+void ServerSeat::set_keyboard_focused_surface(
     util::WeakPtr<input::BoundedObject> obj) {
   if (obj == this->keyboard_focused_surface_) {
     return;
   }
   this->try_leave_keyboard();
 
-  auto     index  = this->keyboard_resources.bucket(obj->client());
-  auto     serial = server::get().next_serial();
   wl_array keys;
   wl_array_init(&keys);
-  std::for_each(this->keyboard_resources.begin(index),
-      this->keyboard_resources.end(index),
-      [serial, &obj, &keys](std::pair<wl_client*, wl_resource*> e) {
-        wl_keyboard_send_enter(e.second, serial, obj->resource(), &keys);
-      });
+  auto* client_seat = this->client_seats[obj->client()];
+  client_seat->keyboard_foreach([serial = server::get().next_serial(), &obj,
+                                    &keys](wl_resource* wl_keyboard) {
+    wl_keyboard_send_enter(wl_keyboard, serial, obj->resource(), &keys);
+  });
   wl_array_release(&keys);
 
-  index = this->data_device_resources.bucket(obj->client());
-  std::for_each(this->data_device_resources.begin(index),
-      this->data_device_resources.end(index),
-      [](std::pair<wl_client*, wayland::data_device::DataDevice*> e) {
-        e.second->send_selection();
-      });
+  client_seat->data_device_foreach([](wl_resource* resource) {
+    wayland::data_device::get(resource)->send_selection();
+  });
 
   this->keyboard_focused_surface_ = std::move(obj);
 }
-void Seat::try_leave_keyboard() {
+void ServerSeat::try_leave_keyboard() {
   auto* surface = dynamic_cast<wayland::surface::Surface*>(
       this->keyboard_focused_surface_.lock());
   if (!surface) {
     return;
   }
-  auto index  = this->keyboard_resources.bucket(surface->client());
-  auto serial = server::get().next_serial();
-  std::for_each(this->keyboard_resources.begin(index),
-      this->keyboard_resources.end(index),
-      [surface, serial](std::pair<wl_client*, wl_resource*> e) {
-        wl_keyboard_send_leave(e.second, serial, surface->resource());
+  this->client_seats[surface->client()]->keyboard_foreach(
+      [serial = server::get().next_serial(), &surface](
+          wl_resource* wl_keyboard) {
+        wl_keyboard_send_leave(wl_keyboard, serial, surface->resource());
       });
   this->keyboard_focused_surface_.reset();
 }
 
-void Seat::set_surface_as_cursor(
+void ServerSeat::set_surface_as_cursor(
     wl_resource* surface_resource, int32_t hotspot_x, int32_t hotspot_y) {
   this->hotspot_.x = hotspot_x;
   this->hotspot_.y = hotspot_y;
@@ -120,14 +112,15 @@ void Seat::set_surface_as_cursor(
     this->move_cursor();
   }
 }
-void Seat::move_cursor() {
+void ServerSeat::move_cursor() {
   const auto pos =
       RayCaster::kOrigin + this->cursor_distance_ * this->ray_.direction();
   auto* cursor = dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock());
   cursor->move(pos, this->ray_.rot(), this->hotspot_);
 }
 
-void Seat::handle_mouse_button(uint32_t button, wl_pointer_button_state state) {
+void ServerSeat::handle_mouse_button(
+    uint32_t button, wl_pointer_button_state state) {
   if (this->obj_state_ == FocusedObjState::MOVING &&
       state == WL_POINTER_BUTTON_STATE_RELEASED) {
     this->obj_state_ = FocusedObjState::DEFAULT;
@@ -143,19 +136,19 @@ void Seat::handle_mouse_button(uint32_t button, wl_pointer_button_state state) {
     this->try_leave_keyboard();
   }
 }
-void Seat::handle_mouse_wheel(float amount) {
+void ServerSeat::handle_mouse_wheel(float amount) {
   if (auto* obj = this->focused_obj_.lock()) {
     obj->axis(amount);
     obj->frame();
   }
 }
 
-void Seat::request_start_move(wl_client* client) {
+void ServerSeat::request_start_move(wl_client* client) {
   auto* obj = this->focused_obj_.lock();
   if (!obj) {
     return;
   }
-  if (obj->client() != client || !obj->is_active()) {
+  if (obj->client() != client) {
     return;
   }
   obj->leave();
@@ -163,7 +156,7 @@ void Seat::request_start_move(wl_client* client) {
   this->obj_state_ = FocusedObjState::MOVING;
 }
 
-void Seat::move_rel_pointing(float polar, float azimuthal) {
+void ServerSeat::move_rel_pointing(float polar, float azimuthal) {
   const float diff_polar = this->ray_.move_rel(polar, azimuthal);
   switch (this->obj_state_) {
     case FocusedObjState::DEFAULT:
@@ -180,7 +173,7 @@ void Seat::move_rel_pointing(float polar, float azimuthal) {
     this->move_cursor();
   }
 }
-void Seat::check_intersection() {
+void ServerSeat::check_intersection() {
   util::WeakPtr<BoundedObject> nearest_obj;
   std::optional<IntersectInfo> nearest_obj_info = std::nullopt;
 
@@ -209,11 +202,6 @@ void Seat::check_intersection() {
   check(server::get().bounded_apps);
 
   if (nearest_obj_info.has_value()) {
-    if (!nearest_obj->is_active()) {
-      LOG_WARN("intersected obj is inactive (distance: %f)",
-          nearest_obj_info->distance);
-      return;  // FIXME: is this error handling correct?
-    }
     bool focus_changed = this->set_focused_obj(nearest_obj);
     if (focus_changed) {
       this->focused_obj_->enter(nearest_obj_info.value());
@@ -234,7 +222,7 @@ void Seat::check_intersection() {
   }
 }
 
-bool Seat::set_focused_obj(util::WeakPtr<input::BoundedObject> obj) {
+bool ServerSeat::set_focused_obj(util::WeakPtr<input::BoundedObject> obj) {
   if (obj == this->focused_obj_) {
     return false;
   }
@@ -243,12 +231,9 @@ bool Seat::set_focused_obj(util::WeakPtr<input::BoundedObject> obj) {
     obj->frame();
   }
   if (dynamic_cast<zwin::bounded::BoundedApp*>(obj.lock())) {
-    auto index = this->data_device_resources.bucket(obj->client());
-    LOG_INFO("Focus on BoundedApp! -> %lu", index);
-    std::for_each(this->data_device_resources.begin(index),
-        this->data_device_resources.end(index),
-        [](std::pair<wl_client*, wayland::data_device::DataDevice*> e) {
-          e.second->send_selection();
+    this->client_seats[obj->client()]->data_device_foreach(
+        [](wl_resource* resource) {
+          wayland::data_device::get(resource)->send_selection();
         });
   }
   this->focused_obj_.swap(obj);

@@ -62,18 +62,20 @@ void BoundedApp::enter(input::IntersectInfo& intersect_info) {
     wl_resource_post_no_memory(this->resource());
     return;
   }
-  this->foreach_ray([this, &origin, &direction](wl_resource* zwn_ray) {
-    zwn_ray_send_enter(zwn_ray, server::get().next_serial(),
-        this->virtual_object_->resource(), &origin, &direction);
-  });
+  server::get().seat->client_seats[this->client()]->ray_foreach(
+      [this, &origin, &direction](wl_resource* zwn_ray) {
+        zwn_ray_send_enter(zwn_ray, server::get().next_serial(),
+            this->virtual_object_->resource(), &origin, &direction);
+      });
   wl_array_release(&origin);
   wl_array_release(&direction);
 }
 void BoundedApp::leave() {
-  this->foreach_ray([this](wl_resource* zwn_ray) {
-    zwn_ray_send_leave(zwn_ray, server::get().next_serial(),
-        this->virtual_object_->resource());
-  });
+  server::get().seat->client_seats[this->client()]->ray_foreach(
+      [this](wl_resource* zwn_ray) {
+        zwn_ray_send_leave(zwn_ray, server::get().next_serial(),
+            this->virtual_object_->resource());
+      });
 }
 void BoundedApp::motion(input::IntersectInfo& intersect_info) {
   wl_array origin;
@@ -88,9 +90,10 @@ void BoundedApp::motion(input::IntersectInfo& intersect_info) {
     wl_resource_post_no_memory(this->resource());
     return;
   }
-  this->foreach_ray([&origin, &direction](wl_resource* zwn_ray) {
-    zwn_ray_send_motion(zwn_ray, util::now_msec(), &origin, &direction);
-  });
+  server::get().seat->client_seats[this->client()]->ray_foreach(
+      [&origin, &direction](wl_resource* zwn_ray) {
+        zwn_ray_send_motion(zwn_ray, util::now_msec(), &origin, &direction);
+      });
   wl_array_release(&origin);
   wl_array_release(&direction);
 }
@@ -106,22 +109,24 @@ void BoundedApp::button(uint32_t button, wl_pointer_button_state wl_state) {
     default:
       return;
   }
-  this->foreach_ray([button, state](wl_resource* zwn_ray) {
-    zwn_ray_send_button(
-        zwn_ray, server::get().next_serial(), util::now_msec(), button, state);
-  });
+  server::get().seat->client_seats[this->client()]->ray_foreach(
+      [button, state](wl_resource* zwn_ray) {
+        zwn_ray_send_button(zwn_ray, server::get().next_serial(),
+            util::now_msec(), button, state);
+      });
 }
 void BoundedApp::axis(float amount) {
-  this->foreach_ray(
+  server::get().seat->client_seats[this->client()]->ray_foreach(
       [amount = wl_fixed_from_double(amount)](wl_resource* zwn_ray) {
         zwn_ray_send_axis(
             zwn_ray, util::now_msec(), ZWN_RAY_AXIS_VERTICAL_SCROLL, amount);
       });
 }
 void BoundedApp::frame() {
-  this->foreach_ray([](wl_resource* zwn_ray) {
-    zwn_ray_send_frame(zwn_ray);
-  });
+  server::get().seat->client_seats[this->client()]->ray_foreach(
+      [](wl_resource* zwn_ray) {
+        zwn_ray_send_frame(zwn_ray);
+      });
 }
 
 std::optional<input::IntersectInfo> BoundedApp::check_intersection(
@@ -161,21 +166,8 @@ std::optional<input::IntersectInfo> BoundedApp::check_intersection(
   };
 }
 
-bool BoundedApp::is_active() {
-  return server::get().seat->ray_resources.count(this->client()) > 0;
-}
-
 void BoundedApp::set_region(util::UniPtr<region::Region>* region) {
   this->pending_.regions = (*region)->regions;
-}
-void BoundedApp::foreach_ray(
-    std::function<void(wl_resource*)>&& handler) const {
-  auto& rays  = server::get().seat->ray_resources;
-  auto  index = rays.bucket(this->client());
-  std::for_each(rays.begin(index), rays.end(index),
-      [handler = std::move(handler)](std::pair<wl_client*, wl_resource*> e) {
-        handler(e.second);
-      });
 }
 void BoundedApp::configure(wl_array* half_size) {
   glm::vec3 requested_half_size;

@@ -45,14 +45,8 @@ constexpr struct wl_data_device_interface kImpl = {.start_drag = start_drag,
     .release                                                   = release};
 
 void destroy(wl_resource* resource) {
-  auto* self    = get(resource);
-  auto& devices = server::get().seat->data_device_resources;
-  for (auto it = devices.begin(); it != devices.end(); ++it) {
-    if (it->second == self) {
-      devices.erase(it);
-      break;
-    }
-  }
+  wl_list_remove(wl_resource_get_link(resource));
+  auto* self = get(resource);
   delete self;
 }
 }  // namespace
@@ -66,7 +60,8 @@ DataDevice* create(wl_client* client, uint32_t id) {
   }
   auto* self = new DataDevice(resource);
   wl_resource_set_implementation(resource, &kImpl, self, destroy);
-  server::get().seat->data_device_resources.emplace(client, self);
+  server::get().seat->client_seats[client]->add_data_device(resource);
+  LOG_DEBUG("created: wl_data_device@%d for client %p", id, (void*)client);
   return self;
 }
 DataDevice* get(wl_resource* resource) {

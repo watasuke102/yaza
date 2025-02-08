@@ -9,8 +9,6 @@
 
 namespace yaza::wayland::pointer {
 namespace {
-void destroy(wl_resource* resource);
-
 void set_cursor(wl_client* /*client*/, wl_resource* /*resource*/,
     uint32_t /*serial*/, wl_resource* surface_resource, int32_t hotspot_x,
     int32_t hotspot_y) {
@@ -18,7 +16,6 @@ void set_cursor(wl_client* /*client*/, wl_resource* /*resource*/,
       surface_resource, hotspot_x, hotspot_y);
 }
 void release(wl_client* /*client*/, wl_resource* resource) {
-  destroy(resource);
   wl_resource_destroy(resource);
 }
 constexpr struct wl_pointer_interface kImpl = {
@@ -27,8 +24,7 @@ constexpr struct wl_pointer_interface kImpl = {
 };
 
 void destroy(wl_resource* resource) {
-  server::get().seat->pointer_resources[wl_resource_get_client(resource)] =
-      nullptr;
+  wl_list_remove(wl_resource_get_link(resource));
 }
 }  // namespace
 
@@ -40,7 +36,7 @@ void create(wl_client* client, uint32_t id) {
     return;
   }
   wl_resource_set_implementation(resource, &kImpl, nullptr, destroy);
-  server::get().seat->pointer_resources[client] = resource;
+  server::get().seat->client_seats[client]->add_pointer(resource);
   LOG_DEBUG("created: wl_pointer@%d for client %p", id, (void*)client);
 }
 }  // namespace yaza::wayland::pointer

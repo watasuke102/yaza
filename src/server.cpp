@@ -9,7 +9,7 @@
 
 #include "common.hpp"
 #include "input/bounded_object.hpp"
-#include "input/seat.hpp"
+#include "input/server_seat.hpp"
 #include "remote/remote.hpp"
 #include "util/weakable_unique_ptr.hpp"
 #include "wayland/wayland.hpp"
@@ -44,7 +44,7 @@ bool Server::init() {
   wl_display_init_shm(instance.wl_display_);
 
   instance.remote = new remote::Remote(instance.loop());
-  instance.seat   = new input::Seat();
+  instance.seat   = new input::ServerSeat();
 
   if (!wayland::init(instance.wl_display_)) {
     BAIL(nullptr);

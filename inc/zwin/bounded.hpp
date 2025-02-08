@@ -4,7 +4,6 @@
 #include <wayland-util.h>
 
 #include <cstdint>
-#include <functional>
 #include <list>
 #include <numbers>
 #include <unordered_map>
@@ -34,7 +33,6 @@ class BoundedApp : public input::BoundedObject {
   std::optional<input::IntersectInfo> check_intersection(
       const glm::vec3& origin, const glm::vec3& direction) override;
   void                       move(float polar, float azimuthal) override;
-  [[nodiscard]] bool         is_active() override;
   [[nodiscard]] wl_resource* resource() const override {
     return this->resource_;
   }
@@ -52,7 +50,6 @@ class BoundedApp : public input::BoundedObject {
     glm::vec3                       half_size = glm::vec3(0.F);
     std::list<region::CuboidRegion> regions;
   } pending_, current_;
-  void foreach_ray(std::function<void(wl_resource*)>&& handler) const;
 
   zwin::virtual_object::VirtualObject* virtual_object_;
   util::Listener<std::nullptr_t*>      virtual_object_committed_listener_;

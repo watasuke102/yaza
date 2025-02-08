@@ -2,6 +2,7 @@
 
 #include <GLES3/gl32.h>
 
+#include "common.hpp"
 #include "server.hpp"
 
 namespace yaza::input {

@@ -9,7 +9,7 @@
 
 #include "common.hpp"
 #include "input/bounded_object.hpp"
-#include "input/seat.hpp"
+#include "input/server_seat.hpp"
 #include "remote/remote.hpp"
 
 namespace yaza::server {
@@ -29,7 +29,7 @@ class Server {
   wl_event_loop* loop();
 
   remote::Remote*                                remote;
-  input::Seat*                                   seat;
+  input::ServerSeat*                             seat;
   std::list<util::WeakPtr<input::BoundedObject>> surfaces;
   void                                           remove_expired_surfaces();
 

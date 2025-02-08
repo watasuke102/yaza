@@ -3,16 +3,14 @@
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
 #include <wayland-server.h>
+#include <wayland-util.h>
 
 #include "common.hpp"
 #include "server.hpp"
 
 namespace yaza::wayland::keyboard {
 namespace {
-void destroy(wl_resource* resource);
-
 void release(wl_client* /*client*/, wl_resource* resource) {
-  destroy(resource);
   wl_resource_destroy(resource);
 }
 constexpr struct wl_keyboard_interface kImpl = {
@@ -20,13 +18,7 @@ constexpr struct wl_keyboard_interface kImpl = {
 };
 
 void destroy(wl_resource* resource) {
-  auto& keyboards = server::get().seat->keyboard_resources;
-  for (auto it = keyboards.begin(); it != keyboards.end(); ++it) {
-    if (it->second == resource) {
-      keyboards.erase(it);
-      return;
-    }
-  }
+  wl_list_remove(wl_resource_get_link(resource));
 }
 }  // namespace
 
@@ -38,7 +30,7 @@ void create(wl_client* client, uint32_t id) {
     return;
   }
   wl_resource_set_implementation(resource, &kImpl, nullptr, destroy);
-  server::get().seat->keyboard_resources.emplace(client, resource);
+  server::get().seat->client_seats[client]->add_keyboard(resource);
   LOG_DEBUG("created: wl_keyboard@%d for client %p", id, (void*)client);
 }
 }  // namespace yaza::wayland::keyboard

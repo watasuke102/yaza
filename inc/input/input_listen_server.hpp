@@ -6,7 +6,7 @@
 #include "common.hpp"
 
 namespace yaza::input {
-class Seat;
+class ServerSeat;
 constexpr uint16_t kServerPort = 22202;
 
 enum class EventType : uint32_t {  // NOLINT

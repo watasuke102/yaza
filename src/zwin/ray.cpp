@@ -8,9 +8,7 @@
 
 namespace yaza::zwin::ray {
 namespace {
-void destroy(wl_resource* resource);
 void release(wl_client* /*client*/, wl_resource* resource) {
-  destroy(resource);
   wl_resource_destroy(resource);
 }
 constexpr struct zwn_ray_interface kImpl = {
@@ -18,13 +16,7 @@ constexpr struct zwn_ray_interface kImpl = {
 };
 
 void destroy(wl_resource* resource) {
-  auto& rays = server::get().seat->ray_resources;
-  for (auto it = rays.begin(); it != rays.end(); ++it) {
-    if (it->second == resource) {
-      rays.erase(it);
-      return;
-    }
-  }
+  wl_list_remove(wl_resource_get_link(resource));
 }
 }  // namespace
 
@@ -36,7 +28,7 @@ void create(wl_client* client, uint32_t id) {
     return;
   }
   wl_resource_set_implementation(resource, &kImpl, nullptr, destroy);
-  server::get().seat->ray_resources.emplace(client, resource);
+  server::get().seat->client_seats[client]->add_ray(resource);
   LOG_DEBUG("created: zwn_ray@%d for client %p", id, (void*)client);
 }
 }  // namespace yaza::zwin::ray

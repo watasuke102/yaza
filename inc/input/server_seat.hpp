@@ -18,6 +18,7 @@
 #include "input/ray_caster.hpp"
 #include "util/weakable_unique_ptr.hpp"
 #include "wayland/data_device/data_device.hpp"
+#include "wayland/seat.hpp"
 
 namespace yaza::input {
 enum class FocusedObjState : uint8_t {
@@ -25,20 +26,13 @@ enum class FocusedObjState : uint8_t {
   MOVING,
 };
 
-class Seat {
+class ServerSeat {
  public:
-  DISABLE_MOVE_AND_COPY(Seat);
-  Seat()  = default;
-  ~Seat() = default;
+  DISABLE_MOVE_AND_COPY(ServerSeat);
+  ServerSeat()  = default;
+  ~ServerSeat() = default;
 
-  // FIXME: wl_client and wl_pointer is not 1:1?
-  std::unordered_map<wl_client*, wl_resource* /*wl_pointer*/> pointer_resources;
-  std::unordered_multimap<wl_client*, wl_resource* /*zwn_ray*/> ray_resources;
-  std::unordered_multimap<wl_client*, wl_resource* /*wl_keyboard*/>
-      keyboard_resources;
-  std::unordered_multimap<wl_client*,
-      wayland::data_device::DataDevice* /*wl_data_device*/>
-      data_device_resources;
+  std::unordered_map<wl_client*, wayland::seat::ClientSeat*> client_seats;
 
   bool                              is_focused_client(wl_client* client);
   wayland::data_device::DataDevice* current_selection = nullptr;

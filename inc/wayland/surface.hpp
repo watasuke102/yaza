@@ -42,7 +42,6 @@ class Surface : public input::BoundedObject {
   std::optional<input::IntersectInfo> check_intersection(
       const glm::vec3& origin, const glm::vec3& direction) override;
   void move(float polar, float azimuthal) override;  // for DEFAULT
-  [[nodiscard]] bool         is_active() override;
   [[nodiscard]] wl_resource* resource() const override {
     return this->resource_;
   }

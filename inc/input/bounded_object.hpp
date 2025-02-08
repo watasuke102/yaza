@@ -48,7 +48,6 @@ class BoundedObject {
   virtual std::optional<IntersectInfo> check_intersection(
       const glm::vec3& origin, const glm::vec3& direction)              = 0;
   virtual void                       move(float polar, float azimuthal) = 0;
-  [[nodiscard]] virtual bool         is_active()                        = 0;
   [[nodiscard]] virtual wl_resource* resource() const                   = 0;
   [[nodiscard]] virtual wl_client*   client() const                     = 0;
 
