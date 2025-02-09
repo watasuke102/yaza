@@ -83,6 +83,8 @@ void ServerSeat::try_leave_keyboard() {
 
 void ServerSeat::set_surface_as_cursor(
     wl_resource* surface_resource, int32_t hotspot_x, int32_t hotspot_y) {
+  this->hotspot_ =
+      glm::vec3(hotspot_x, -hotspot_y, 0.F) / wayland::surface::kPixelPerMeter;
   if (this->cursor_.lock()) {
     if (this->cursor_->resource() == surface_resource) {
       return;
@@ -98,17 +100,20 @@ void ServerSeat::set_surface_as_cursor(
     this->cursor_ = surface.value();
     auto* cursor =
         dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock());
-    cursor->set_role(
-        wayland::surface::Role::CURSOR, glm::ivec2{hotspot_x, hotspot_y});
+    cursor->set_role(wayland::surface::Role::CURSOR, nullptr);
     cursor->set_active(true);
     this->move_cursor();
   }
 }
 void ServerSeat::move_cursor() {
   const auto pos =
-      RayCaster::kOrigin + this->cursor_distance_ * this->ray_.direction();
-  auto* cursor = dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock());
-  cursor->move(pos, this->ray_.rot());
+      (RayCaster::kOrigin + this->cursor_distance_ * this->ray_.direction()) -
+      this->hotspot_;
+  // add rotation to let Surface look at the camera
+  auto rot = this->ray_.rot() * glm::angleAxis(std::numbers::pi_v<float>,
+                                    glm::vec3{0.F, 1.F, 0.F});
+  dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock())
+      ->move(pos, rot);
 }
 
 void ServerSeat::handle_mouse_button(

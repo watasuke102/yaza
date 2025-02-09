@@ -61,9 +61,8 @@ constexpr auto* kFragShader = GLSL(
   }
 );
 // clang-format on
-constexpr float kPixelPerMeter = 9000.F;
-constexpr float kOffsetY       = 0.85F;
-constexpr float kLayerZOffset  = 0.0001F;
+constexpr float kOffsetY      = 0.85F;
+constexpr float kLayerZOffset = 0.0001F;
 }  // namespace
 Surface::Surface(wl_resource* resource)
     : input::BoundedObject(util::Box(
@@ -283,17 +282,13 @@ void Surface::move(float polar, float azimuthal) {
     this->renderer_->commit();
   }
 }
-void Surface::move(glm::vec3 pos, glm::quat rot) {
-  auto hotspot = std::get<glm::ivec2>(this->role_obj_);
-  this->geom_.pos() =
-      pos - (glm::vec3{hotspot.x, -hotspot.y, 0.F} / kPixelPerMeter);
+void Surface::move(glm::vec3 left_top_pos, glm::quat rot) {
+  this->geom_.pos() = left_top_pos;
   this->geom_.x() +=
       static_cast<float>(this->tex_width_) / 2.F / kPixelPerMeter;
   this->geom_.y() -=
       static_cast<float>(this->tex_height_) / 2.F / kPixelPerMeter;
-
-  this->geom_.rot() =  // add rotation to let Surface look at the camera
-      rot * glm::angleAxis(std::numbers::pi_v<float>, glm::vec3{0.F, 1.F, 0.F});
+  this->geom_.rot() = rot;
 
   if (this->renderer_) {
     this->sync_geom();

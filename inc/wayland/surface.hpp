@@ -26,14 +26,16 @@ class XdgTopLevel;
 }
 
 namespace yaza::wayland::surface {
+constexpr float kPixelPerMeter = 9000.F;
+
 enum class Role : uint8_t {
   DEFAULT,
   CURSOR,
   XDG_TOPLEVEL,
   XDG_POPUP,
 };
-using RoleObject = std::variant<std::monostate,
-    glm::ivec2 /* cursor: hotspot */, xdg_shell::xdg_toplevel::XdgTopLevel*>;
+using RoleObject =
+    std::variant<std::nullptr_t, xdg_shell::xdg_toplevel::XdgTopLevel*>;
 
 class Surface : public input::BoundedObject {
  public:
@@ -66,7 +68,7 @@ class Surface : public input::BoundedObject {
   void set_active(bool is_active);
   void on_focus();
   void on_unfocus();
-  void move(glm::vec3 pos, glm::quat rot);  // for CURSOR
+  void move(glm::vec3 left_top_pos, glm::quat rot);  // for CURSOR
 
   /// @param index 0 is the nearest to the camera
   /// @return true if the index is **consumed** (reposition is proceeded)
@@ -96,8 +98,8 @@ class Surface : public input::BoundedObject {
   glm::ivec2 offset_    = glm::vec2(0);  // surface local
   bool       is_active_ = true;          // only for CURSOR
 
-  Role       role_ = Role::DEFAULT;
-  RoleObject role_obj_;
+  Role       role_     = Role::DEFAULT;
+  RoleObject role_obj_ = nullptr;
 
   util::DataPool texture_;
   uint32_t       tex_width_;

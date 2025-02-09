@@ -7,9 +7,7 @@
 
 #include <cstdint>
 #include <glm/ext/matrix_float4x4.hpp>
-#include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_float3.hpp>
-#include <glm/ext/vector_int2.hpp>
 #include <unordered_map>
 
 #include "common.hpp"
@@ -58,8 +56,9 @@ class ServerSeat {
   void                                try_leave_keyboard();
 
   util::WeakPtr<input::BoundedObject> cursor_;
-  float                               cursor_distance_;
-  void                                move_cursor();
+  glm::vec3 hotspot_;  // OpenGL scale (divided by kPixelPerMeter)
+  float     cursor_distance_;
+  void      move_cursor();
 
   InputListenServer input_listen_server_;
   RayCaster         ray_;
