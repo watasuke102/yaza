@@ -13,8 +13,6 @@ class XdgTopLevel {
 
   void set_activated(bool activated);
 
-  void listen_committed(util::Listener<std::nullptr_t*>& listener);
-
  private:
   xdg_surface::XdgSurface* xdg_surface_;
   wl_resource*             resource_;
