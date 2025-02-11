@@ -13,7 +13,7 @@ class DataDevice {
  public:
   DISABLE_MOVE_AND_COPY(DataDevice);
   explicit DataDevice(wl_resource* resource);
-  ~DataDevice() = default;
+  ~DataDevice();
 
   wl_resource* resource() {
     return this->resource_;

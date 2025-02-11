@@ -11,6 +11,12 @@
 namespace yaza::wayland::data_device {
 DataDevice::DataDevice(wl_resource* resource) : resource_(resource) {
 }
+DataDevice::~DataDevice() {
+  if (server::get().seat->current_selection &&
+      server::get().seat->current_selection->resource() == this->resource()) {
+    server::get().seat->current_selection = nullptr;
+  }
+}
 void DataDevice::set_selection(data_source::DataSrc* source, uint32_t serial) {
   this->data_source_                    = source;
   this->serial_                         = serial;
@@ -40,9 +46,11 @@ void set_selection(wl_client* /*client*/, wl_resource* resource,
 void release(wl_client* /*client*/, wl_resource* resource) {
   wl_resource_destroy(resource);
 }
-constexpr struct wl_data_device_interface kImpl = {.start_drag = start_drag,
-    .set_selection                                             = set_selection,
-    .release                                                   = release};
+constexpr struct wl_data_device_interface kImpl = {
+    .start_drag    = start_drag,
+    .set_selection = set_selection,
+    .release       = release,
+};
 
 void destroy(wl_resource* resource) {
   wl_list_remove(wl_resource_get_link(resource));
