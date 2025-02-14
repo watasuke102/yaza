@@ -4,7 +4,11 @@
 #include <wayland-server.h>
 
 #include <cstddef>
+#include <glm/ext/quaternion_float.hpp>
+#include <glm/ext/vector_float3.hpp>
+#include <glm/ext/vector_int2.hpp>
 
+#include "util/box.hpp"
 #include "util/signal.hpp"
 #include "util/weakable_unique_ptr.hpp"
 #include "wayland/surface.hpp"
@@ -17,9 +21,13 @@ class XdgSurface {
       util::WeakPtr<wayland::surface::Surface>&& surface);
   ~XdgSurface();
 
-  void set_wl_surface_role(
-      wayland::surface::Role role, wayland::surface::RoleObject obj);
   void send_configure();
+
+  const util::Box& get_wl_surface_geom();
+  glm::ivec2       get_wl_surface_texture_pixel_size();
+  void             set_wl_surface_role(
+                  wayland::surface::Role role, wayland::surface::RoleObject obj);
+  void move_wl_surface(glm::vec3 pos, glm::quat rot);
 
  private:
   bool is_first_commit_ = true;

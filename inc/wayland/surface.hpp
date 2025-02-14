@@ -21,9 +21,14 @@
 #include "util/data_pool.hpp"
 #include "util/signal.hpp"
 
-namespace yaza::xdg_shell::xdg_toplevel {
+namespace yaza::xdg_shell {
+namespace xdg_toplevel {
 class XdgTopLevel;
 }
+namespace xdg_popup {
+class XdgPopup;
+}
+}  // namespace yaza::xdg_shell
 
 namespace yaza::wayland::surface {
 constexpr float kPixelPerMeter = 9000.F;
@@ -34,8 +39,8 @@ enum class Role : uint8_t {
   XDG_TOPLEVEL,
   XDG_POPUP,
 };
-using RoleObject =
-    std::variant<std::nullptr_t, xdg_shell::xdg_toplevel::XdgTopLevel*>;
+using RoleObject = std::variant<std::nullptr_t,
+    xdg_shell::xdg_toplevel::XdgTopLevel*, xdg_shell::xdg_popup::XdgPopup*>;
 
 class Surface : public input::BoundedObject {
  public:
@@ -59,6 +64,8 @@ class Surface : public input::BoundedObject {
     return wl_resource_get_client(this->resource_);
   }
 
+  [[nodiscard]] glm::ivec2 texture_pixel_size() const;
+
   void attach(wl_resource* buffer);
   void queue_frame_callback(wl_resource* resource) const;
   void commit();
@@ -68,7 +75,7 @@ class Surface : public input::BoundedObject {
   void set_active(bool is_active);
   void on_focus();
   void on_unfocus();
-  void move(glm::vec3 left_top_pos, glm::quat rot);  // for CURSOR
+  void move(glm::vec3 left_top_pos, glm::quat rot);  // for CURSOR, POPUP
 
   /// @param index 0 is the nearest to the camera
   /// @return true if the index is **consumed** (reposition is proceeded)

@@ -181,6 +181,10 @@ std::optional<input::IntersectInfo> Surface::check_intersection(
   };
 }
 
+glm::ivec2 Surface::texture_pixel_size() const {
+  return {this->tex_width_, this->tex_height_};
+}
+
 void Surface::init_renderer() {
   this->renderer_ = std::make_unique<Renderer>(kVertShader, kFragShader);
   std::vector<float> vertices{
