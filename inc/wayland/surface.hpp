@@ -26,7 +26,7 @@ class XdgTopLevel;
 }
 
 namespace yaza::wayland::surface {
-constexpr float kPixelPerMeter = 9000.F;
+constexpr float kPixelPerMeter = 5000.F;
 
 enum class Role : uint8_t {
   DEFAULT,

@@ -164,9 +164,9 @@ std::optional<input::IntersectInfo> Surface::check_intersection(
     return std::nullopt;
   }
   auto      geom_mat          = this->geom_.mat();
-  glm::vec3 vert_left_bottom  = geom_mat * glm::vec4(-1.F, -1.F, 0.F, 1.F);
-  glm::vec3 vert_right_bottom = geom_mat * glm::vec4(+1.F, -1.F, 0.F, 1.F);
-  glm::vec3 vert_left_top     = geom_mat * glm::vec4(-1.F, +1.F, 0.F, 1.F);
+  glm::vec3 vert_left_bottom  = geom_mat * glm::vec4(-0.5F, -0.5F, 0.F, 1.F);
+  glm::vec3 vert_right_bottom = geom_mat * glm::vec4(+0.5F, -0.5F, 0.F, 1.F);
+  glm::vec3 vert_left_top     = geom_mat * glm::vec4(-0.5F, +0.5F, 0.F, 1.F);
   auto      result            = util::intersection::with_surface(
       origin, direction, vert_left_bottom, vert_right_bottom, vert_left_top);
   if (!result.has_value()) {
@@ -184,10 +184,10 @@ std::optional<input::IntersectInfo> Surface::check_intersection(
 void Surface::init_renderer() {
   this->renderer_ = std::make_unique<Renderer>(kVertShader, kFragShader);
   std::vector<float> vertices{
-      +1.F, +1.F, 0.F,  // 3 ------ 0
-      +1.F, -1.F, 0.F,  // |        |
-      -1.F, -1.F, 0.F,  // |        |
-      -1.F, +1.F, 0.F,  // 2 ------ 1
+      +0.5F, +0.5F, 0.F,  // 3 ------ 0
+      +0.5F, -0.5F, 0.F,  // |        |
+      -0.5F, -0.5F, 0.F,  // |        |
+      -0.5F, +0.5F, 0.F,  // 2 ------ 1
   };
   std::vector<float> uv{
       1.F, 0.F,  //
