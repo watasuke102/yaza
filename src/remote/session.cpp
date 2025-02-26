@@ -22,6 +22,11 @@ Session::Session(const std::shared_ptr<zen::remote::server::IPeer>& peer,
 Session::~Session() {
   LOG_DEBUG("(Session destructor, peer id=%lu)", peer_id_);
   this->disconnect_signal_disconnector_->Disconnect();
+  LOG_DEBUG("(Session destructor, try to clear remote::Channel)");
+  this->channel_.reset();
+  LOG_DEBUG("(Session destructor, try to clear remote::Session)");
+  this->session_.reset();
+  LOG_DEBUG("(end of Session destructor)");
 }
 [[nodiscard]] uint64_t Session::id() const {
   return this->peer_id_;

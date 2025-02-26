@@ -113,7 +113,7 @@ void ServerSeat::move_cursor() {
   auto rot = this->ray_.rot() * glm::angleAxis(std::numbers::pi_v<float>,
                                     glm::vec3{0.F, 1.F, 0.F});
   dynamic_cast<wayland::surface::Surface*>(this->cursor_.lock())
-      ->move(pos, rot);
+      ->move_abs_by_left_top_pos(pos, rot);
 }
 
 void ServerSeat::handle_mouse_button(

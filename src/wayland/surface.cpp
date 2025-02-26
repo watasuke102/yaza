@@ -18,6 +18,7 @@
 #include <glm/ext/vector_float3.hpp>
 #include <glm/ext/vector_int2.hpp>
 #include <glm/geometric.hpp>
+#include <glm/gtx/string_cast.hpp>
 #include <memory>
 #include <optional>
 
@@ -56,7 +57,8 @@ constexpr auto* kFragShader = GLSL(
 
   void main() {
     vec4 color = texture(texture, uv);
-    if (color.a < 0.5) discard;
+    // if (color.a < 0.5) discard;
+    color.a = 1.0;
     color_out = color;
   }
 );
@@ -181,6 +183,10 @@ std::optional<input::IntersectInfo> Surface::check_intersection(
   };
 }
 
+glm::ivec2 Surface::texture_pixel_size() const {
+  return {this->tex_width_, this->tex_height_};
+}
+
 void Surface::init_renderer() {
   this->renderer_ = std::make_unique<Renderer>(kVertShader, kFragShader);
   std::vector<float> vertices{
@@ -227,6 +233,10 @@ void Surface::update_pos_and_rot() {
   }
 }
 void Surface::sync_geom() {
+  LOG_DEBUG("surface@%02d.sync_geom() | pos: %s, size: %s",
+      wl_resource_get_id(this->resource_),
+      glm::to_string(this->geom_.pos()).c_str(),
+      glm::to_string(this->geom_.scale()).c_str());
   auto pos =
       this->geom_.pos() +
       (glm::vec3(this->offset_.x, -this->offset_.y, 0.F) / kPixelPerMeter);
@@ -239,6 +249,9 @@ void Surface::set_texture_size(uint32_t width, uint32_t height) {
   this->tex_height_    = height;
   this->geom_.width()  = static_cast<float>(this->tex_width_) / kPixelPerMeter;
   this->geom_.height() = static_cast<float>(this->tex_height_) / kPixelPerMeter;
+  LOG_DEBUG("surface@%02d.set_size() | %d, %d -> %f, %f",
+      wl_resource_get_id(this->resource_), this->tex_width_, this->tex_height_,
+      this->geom_.width(), this->geom_.height());
   if (this->renderer_) {
     this->sync_geom();
   }
@@ -282,12 +295,21 @@ void Surface::move(float polar, float azimuthal) {
     this->renderer_->commit();
   }
 }
-void Surface::move(glm::vec3 left_top_pos, glm::quat rot) {
+void Surface::move_abs_by_left_top_pos(glm::vec3 left_top_pos, glm::quat rot) {
   this->geom_.pos() = left_top_pos;
   this->geom_.x() +=
       static_cast<float>(this->tex_width_) / 2.F / kPixelPerMeter;
   this->geom_.y() -=
       static_cast<float>(this->tex_height_) / 2.F / kPixelPerMeter;
+  this->geom_.rot() = rot;
+
+  if (this->renderer_) {
+    this->sync_geom();
+    this->renderer_->commit();
+  }
+}
+void Surface::move_abs_by_center_pos(glm::vec3 center_pos, glm::quat rot) {
+  this->geom_.pos() = center_pos;
   this->geom_.rot() = rot;
 
   if (this->renderer_) {

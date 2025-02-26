@@ -152,7 +152,9 @@ void Remote::disconnect() {
   assert(this->has_session());
   LOG_DEBUG(
       "disconnecting session (id=%lu)", this->current_session_->get()->id());
+  LOG_DEBUG("set current_session to nullopt");
   this->current_session_ = std::nullopt;
+  LOG_DEBUG("(end of Session destructor?)");
   this->events_.session_disconnected.emit(nullptr);
 }
 }  // namespace yaza::remote
