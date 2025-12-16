@@ -41,7 +41,7 @@ set(CMAKE_CXX_FLAGS "")
 find_program(MESON_PROGRAM NAMES meson REQUIRED)
 include(ExternalProject)
 ExternalProject_Add(libffi
-  GIT_REPOSITORY https://github.com/libffi/libffi.git GIT_TAG v3.4.6 GIT_SHALLOW true
+  GIT_REPOSITORY https://github.com/libffi/libffi.git GIT_TAG v3.5.2 GIT_SHALLOW true
   SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/3rdparty/libffi
   INSTALL_DIR ${EXTERNAL_PROJ_PREFIX}
   UPDATE_COMMAND ""
@@ -51,7 +51,7 @@ ExternalProject_Add(libffi
   BUILD_BYPRODUCTS ${EXTERNAL_PROJ_PREFIX}/lib/libffi.a
 )
 ExternalProject_Add(wayland
-  GIT_REPOSITORY https://gitlab.freedesktop.org/wayland/wayland.git GIT_TAG 1.23.1 GIT_SHALLOW true
+  GIT_REPOSITORY https://gitlab.freedesktop.org/wayland/wayland.git GIT_TAG 1.24.0 GIT_SHALLOW true
   SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/3rdparty/wayland
   INSTALL_DIR ${EXTERNAL_PROJ_PREFIX}
   UPDATE_COMMAND ""
@@ -62,7 +62,7 @@ ExternalProject_Add(wayland
   DEPENDS libffi
 )
 ExternalProject_Add(wayland-protocols
-  GIT_REPOSITORY https://gitlab.freedesktop.org/wayland/wayland-protocols.git GIT_TAG 1.39 GIT_SHALLOW true
+  GIT_REPOSITORY https://gitlab.freedesktop.org/wayland/wayland-protocols.git GIT_TAG 1.47 GIT_SHALLOW true
   SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/3rdparty/wayland-protocols
   INSTALL_DIR ${EXTERNAL_PROJ_PREFIX}
   UPDATE_COMMAND ""
@@ -145,6 +145,7 @@ target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${lib_inc_dirs})
 target_link_libraries(${PROJECT_NAME} ${link_libs})
 target_compile_options(${PROJECT_NAME} PRIVATE 
   -Wall -Wextra -Wpedantic -Wno-gnu-zero-variadic-macro-arguments -Wno-c99-designator
+  -DGLM_ENABLE_EXPERIMENTAL
   -ffile-prefix-map=${CMAKE_SOURCE_DIR}/src/=
   -ffile-prefix-map=${CMAKE_SOURCE_DIR}/inc/=
 )
